@@ -10,6 +10,10 @@
 * relation of peaks and code lengths
 * relation between max num. of seeds and code length
 
+Questions:
+* is it problematic if the Receiver is outside the convex hull spanned by the transducers?
+
+
 ## second stage 07-22 to 09-22 (10h / week)
 
 * Research Orthogonal Codes and their Implementation
@@ -19,6 +23,7 @@
 
 ## third stage 09-22 to 12-22 (20h / week)
 
+* IMU for better position approximation while using EKM
 * Implementation and documentation of python scripts / programs
 * Optimization of finalized code
 * Correction of documentation
