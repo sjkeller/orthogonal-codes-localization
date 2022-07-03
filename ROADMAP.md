@@ -10,10 +10,6 @@
 * relation of peaks and code lengths
 * relation between max num. of seeds and code length
 
-Questions:
-* is it problematic if the Receiver is outside the convex hull spanned by the transducers?
-
-
 ## second stage 07-22 to 09-22 (10h / week)
 
 * Research Orthogonal Codes and their Implementation
@@ -30,3 +26,6 @@ Questions:
 * final presentation
 
 TOTAL 12 ECTS = 360h
+
+
+
