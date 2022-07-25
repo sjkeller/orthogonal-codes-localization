@@ -1,0 +1,119 @@
+%%
+%% This is file 'tuhhstyle.sty'
+%%
+%% Copyright 2007 Christoph Weyer, Christian Renner
+%%
+%% This file is part of the TUHH-Script-bundle.
+%%
+%% This system is distributed in the hope that it will be useful,
+%% but WITHOUT ANY WARRANTY; without even the implied warranty of
+%% MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+%%
+
+% Exit if the style file is already loaded
+% (suggested by Lee Shombert <las@potomac.wash.inmet.com>
+\ifx \tuhhstylestyloaded\relax \endinput\else\let\tuhhstylestyloaded\relax\fi
+
+\NeedsTeXFormat{LaTeX2e}[2009/09/24]
+\RequirePackage{svn-multi}[2011/08/20]
+\svnid{$Id: tuhhstyle.sty 27490 2013-02-05 17:35:11Z ti5cr $}
+
+\makeatletter
+
+\def\tuhhstyle@PackageName{tuhhstyle}
+\def\tuhhstyle@PackageDesc{TUHH style definitions}
+\def\tuhhstyle@PackageVersion{0.1}
+\def\tuhhstyle@PackageFullVersion{\tuhhstyle@PackageVersion\space(rev\space\svnfilerev)}
+
+\ProvidesPackage{\tuhhstyle@PackageName}[%
+  \svnfileyear/\svnfilemonth/\svnfileday\space%
+  v\tuhhstyle@PackageFullVersion\space\tuhhstyle@PackageDesc]
+\typeout{Package \tuhhstyle@PackageName, \csname ver@\tuhhstyle@PackageName.sty\endcsname%
+  ^^J\@spaces\@spaces\@spaces\@spaces\space\space
+  Copyright (C) Christoph Weyer and Christian Renner, 2007-\svnfileyear^^J}
+
+%%% using key/value pairs as options to packages and classes
+\RequirePackage{kvoptions}
+
+\SetupKeyvalOptions{%
+  family=tuhhstyle,
+  prefix=@tuhhstyle@
+}
+
+% allow for grayscale option
+\DeclareBoolOption{grayfonts}
+
+\DeclareDefaultOption{%
+  \PackageWarning{\tuhhstyle@PackageName}{Unknown option '\CurrentOption'}%
+}
+
+\ProcessKeyvalOptions*\relax
+
+\RequirePackage{ifthen}
+\RequirePackage{xcolor}
+\RequirePackage{tuhhcolor}
+
+\if@tuhhstyle@grayfonts%
+  %
+  %\definecolor{tuhhbookdef_chapter}{named}{tuhh_blue}
+  %\definecolor{tuhhbookdef_section}{named}{tuhh_blue}
+  %\definecolor{tuhhbookdef_subsection}{named}{tuhh_blue}
+  %\definecolor{tuhhbookdef_subsubsection}{named}{tuhh_blue}
+
+  % bst
+  \definecolor{tuhh_color_bibkey}{named}{tuhh_darkgray}
+
+  % preamble
+  \definecolor{tuhh_color_enumi}{named}{tuhh_black}
+  \definecolor{tuhh_color_enumii}{named}{tuhh_darkgray}
+  \definecolor{tuhh_color_enumiii}{named}{tuhh_mediumgray}
+
+  % thesis
+  \definecolor{tuhh_color_title}{named}{tuhh_black}
+  %\definecolor{tuhh_color_subject}{named}{tuhh_darkgray}
+
+\else
+  %
+  %\definecolor{tuhhbookdef_chapter}{named}{tuhh_black}
+  %\definecolor{tuhhbookdef_section}{named}{tuhh_black}
+  %\definecolor{tuhhbookdef_subsection}{named}{tuhh_black}
+  %\definecolor{tuhhbookdef_subsubsection}{named}{tuhh_black}
+
+  % bst
+  \definecolor{tuhh_color_bibkey}{named}{tuhh_red_8-8}
+
+  % preamble
+  \definecolor{tuhh_color_enumi}{named}{tuhh_dark_8-8}
+  \definecolor{tuhh_color_enumii}{named}{tuhh_dark_8-6}
+  \definecolor{tuhh_color_enumiii}{named}{tuhh_dark_8-4}
+
+  % thesis
+  \definecolor{tuhh_color_title}{named}{tuhh_dark_8-8}
+  \definecolor{tuhh_color_subject}{named}{tuhh_black_8-5}
+  %\definecolor{tuhh_color_backref}{named}{tuhh_gray!35!tuhh_blue}
+
+  % curved bars
+  \definecolor{tuhh_color_theme_light}{named}{tuhh_main_8-8}
+  \definecolor{tuhh_color_theme_dark}{named}{tuhh_dark_8-8}
+  \definecolor{tuhh_color_theme_lightfill}{named}{tuhh_main_8-4}
+  %\definecolor{tuhh_color_font_shadow}{named}{tuhh_darkturquoise!60!tuhh_black}
+  \definecolor{tuhh_color_theme_comp}{named}{tuhh_red_8-8}
+
+  % links
+  \definecolor{tuhh_color_reflink}{named}{tuhh_dark_8-8}
+  \definecolor{tuhh_color_citelink}{named}{tuhh_red_8-8}
+  \definecolor{tuhh_color_filelink}{named}{tuhh_purple_8-8}
+  \definecolor{tuhh_color_urllink}{named}{tuhh_blue_8-8}
+\fi
+
+\definecolor{tuhh_color_basic}{named}{tuhh_black}
+\definecolor{tuhh_color_primary}{named}{tuhh_orange}
+\definecolor{tuhh_color_secondary}{named}{tuhh_magenta}
+\definecolor{tuhh_color_tertiary}{named}{tuhh_darkturquoise}
+\definecolor{tuhh_color_quaternary}{named}{tuhh_darkred}
+\definecolor{tuhh_color_quinary}{named}{tuhh_darkblue}
+\definecolor{tuhh_color_senary}{named}{tuhh_blue}
+\definecolor{tuhh_color_septenary}{named}{tuhh_lightblue}
+\definecolor{tuhh_color_octonary}{named}{tuhh_yellow}
+
+\endinput

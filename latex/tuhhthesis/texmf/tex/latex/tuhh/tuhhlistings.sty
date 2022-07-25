@@ -1,0 +1,215 @@
+%%
+%% This is file 'tuhhlistings.sty'
+%%
+%% Copyright 2016 Christoph Weyer, Christian Renner
+%%
+%% This file is part of the TUHH-Script-bundle.
+%%
+%% This system is distributed in the hope that it will be useful,
+%% but WITHOUT ANY WARRANTY; without even the implied warranty of
+%% MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+%%
+
+% Exit if the style file is already loaded
+% (suggested by Lee Shombert <las@potomac.wash.inmet.com>
+\ifx \tuhhlistingsstyloaded\relax \endinput\else\let\tuhhlistingsstyloaded\relax\fi
+
+\NeedsTeXFormat{LaTeX2e}[2009/09/24]
+\RequirePackage{svn-multi}[2011/08/20]
+\svnid{$Id: tuhhlistings.sty 27490 2013-02-05 17:35:11Z ti5cr $}
+
+\makeatletter
+
+
+\def\tuhhlistings@PackageName{tuhhlistings}
+\def\tuhhlistings@PackageDesc{TUHH listings definitions}
+\def\tuhhlistings@PackageVersion{0.2}
+\def\tuhhlistings@PackageFullVersion{\tuhhlistings@PackageVersion\space(rev\space\svnfilerev)}
+
+\ProvidesPackage{\tuhhlistings@PackageName}[%
+  \svnfileyear/\svnfilemonth/\svnfileday\space%
+  v\tuhhlistings@PackageFullVersion\space\tuhhlistings@PackageDesc]
+\typeout{Package \tuhhlistings@PackageName, \csname ver@\tuhhlistings@PackageName.sty\endcsname%
+  ^^J\@spaces\@spaces\@spaces\@spaces\space\space
+  Copyright (C) Christoph Weyer and Christian Renner, 2016-\svnfileyear^^J}
+
+%%% using key/value pairs as options to packages and classes
+\RequirePackage{kvoptions}
+
+\SetupKeyvalOptions{%
+  family=tuhhlisting,
+  prefix=@tuhhlisting@
+}
+
+\DeclareStringOption[10pt]{fontsize}
+\DeclareStringOption[1.1]{fontstretch}
+
+\DeclareDefaultOption{%
+  \PackageWarning{\tuhhcommon@PackageName}{Unknown option '\CurrentOption'}%
+}
+
+\ProcessKeyvalOptions*\relax
+
+
+
+%%
+%% required packages
+%%
+\RequirePackage{listings}
+\RequirePackage{tuhhcolor}
+
+% typewriter
+\RequirePackage{setspace}
+%\RequirePackage[scaled=.9]{beramono}
+
+
+
+%%%
+%%% Highlight in lstlisting
+%%%
+%%% from: http://tex.stackexchange.com/questions/15237/highlight-text-in-code-listing-while-also-keeping-syntax-highlighting
+%%%
+%\makeatletter
+\newenvironment{btHighlight}[1][]
+{\begingroup\tikzset{bt@Highlight@par/.style={#1}}\begin{lrbox}{\@tempboxa}}
+{\end{lrbox}\bt@HL@box[bt@Highlight@par]{\@tempboxa}\endgroup}
+
+\newcommand\btHL[1][]{%
+  \begin{btHighlight}[#1]\bgroup\aftergroup\bt@HL@endenv%
+}
+\def\bt@HL@endenv{%
+  \end{btHighlight}%
+  \egroup
+}
+\newcommand{\bt@HL@box}[2][]{%
+  \tikz[#1]{%
+    \pgfpathrectangle{\pgfpoint{1pt}{0pt}}{\pgfpoint{\wd #2}{\ht #2}}%
+    \pgfusepath{use as bounding box}%
+    \node[anchor=base west,fill=orange!30,outer sep=0pt,inner xsep=1pt, inner ysep=-0.3pt,rounded corners=1pt,minimum height=\ht\strutbox+1pt,#1]{\raisebox{1pt}{\strut}\strut\usebox{#2}};
+  }%
+}
+%\makeatother
+
+
+
+\lstdefinestyle{tuhhlstSlideStyle}{
+    morekeywords     = {},
+    %
+    frame            = single,
+    framextopmargin = -5pt,
+    framerule        = 0.5pt,
+    rulecolor        = \color{tuhh_brown_8-2},
+    %
+    backgroundcolor  = \color{tuhh_brown_8-1},%
+    %bordercolor       = \color{tuhh_mediumgray},%
+    numbers          = left,
+    %numberstyle      = \tiny\ttfamily\color{tuhh_black_8-6},
+    numberstyle      = \ttfamily\color{tuhh_black_8-6}\fontsize{\@tuhhlisting@fontsize}{\@tuhhlisting@fontsize}\selectfont,
+    numbersep        = 6pt,
+    stepnumber       = 1,
+    %numbersep        = 5pt,
+    %
+    commentstyle     = \color{tuhh_black_8-4}\itshape,
+    %keywordstyle     = \color{tuhh_purple_8-8},%\bfseries,
+    keywordstyle     = \bfseries,
+    stringstyle      = \color{tuhh_red_8-8}\itshape,
+    basicstyle       = \color{tuhh_black_8-7}\ttfamily\setstretch{\@tuhhlisting@fontstretch}\fontsize{\@tuhhlisting@fontsize}{\@tuhhlisting@fontsize}\selectfont,
+    %
+    tabsize          = 2,
+    showstringspaces = false,
+    mathescape       = true,
+    escapechar       = \§,
+    aboveskip        = 0pt,
+    belowskip        = 0pt,
+    %fontadjust       = true,
+    %columns          = fullflexible,
+    %keepspaces       = true,
+    moredelim        =*[is][\color{tuhh_red_8-8}]{°}{°},
+    moredelim        =**[is][\rmfamily\slshape]{`}{`},
+    moredelim        =**[is][\itshape\color{tuhh_dark_8-8}]{@}{@},
+    %
+    moredelim        =**[is][{\btHL[fill=tuhh_red_8-2,draw=tuhh_red_8-4,solid,ultra thin]}]{@^}{^@},
+    moredelim        =**[is][{\only<2->{\btHL[fill=tuhh_red_8-2,draw=tuhh_red_8-4,solid,ultra thin]}}]{@^2}{^@},
+    %
+    literate         = {Ä}{{\"A}}1
+    {Ö}{{\"O}}1
+    {Ü}{{\"U}}1
+    {ä}{{\"a}}1
+    {ö}{{\"o}}1
+    {ü}{{\"u}}1
+    {ß}{{\ss{}}}1
+    {:=}{{$\raisebox{0.8pt}{\texttt{:}}$=}}2
+}
+
+
+\newcommand{\code}[2][]{%
+  {%
+    %\leavevmode\ifmmode\else\mathversion{sans}\fi%
+    \normalfont\lstinline[style=tuhhlstSlideStyle,basicstyle=\ttfamily\normalsize, #1]{#2}%
+  }%
+}
+
+% \newif\iftuhhlst@fontsize
+% \newif\iftuhhlst@stretch
+% %\lst@Key{fontsize}{\scriptsize}{\def\tuhhlst@fontsize{#1}\global\tuhhlst@fontsizetrue}
+% %\lst@Key{stretch}{1.2}{\def\tuhhlst@stretch{#1}\global\tuhhlst@stretchtrue}
+% \lst@Key{fontsize}{\scriptsize}{\def\tuhhlst@fontsize{#1}\global\tuhhlst@fontsizetrue}
+% \lst@Key{stretch}{1.1}{\def\tuhhlst@stretch{#1}\global\tuhhlst@stretchtrue}
+%\newcommand{\tuhhlst@fontsize}{\small}
+%\newcommand{\tuhhlst@stretch}{1.1}
+%\newcommand{\tuhhlst@lang}{Java}
+
+
+\RequirePackage[many]{tcolorbox}
+\tcbuselibrary{listings}
+
+\tcbset{%
+  tuhhlst/.style = {
+    colback   = white,
+    boxrule   = 0pt,
+    arc       = 0pt,
+    outer arc = 0pt,
+    top       = 1.0pt, % FIXME change this depending on font size? (how?)
+    %top       = 5.0pt,
+    bottom    = -2.0pt,%-2.85pt,
+    left      = 12.5pt,
+    right     = 0pt,
+    colframe  = white,
+    listing only,
+    enhanced,
+    enlarge top by=-2mm, % HACK prevent ugly spacing above listings ...
+    %show bounding box, % for DEBUGGING
+    overlay = {
+      % left edge for line numbers
+      \fill[tuhh_brown_8-2]
+          ([xshift=-1pt,yshift=0.05em]frame.south west)
+        rectangle
+          %([xshift=12.5pt,yshift=2.1pt]frame.north west);
+          ([xshift=12.5pt,yshift=-0.2em]frame.north west);
+    },
+    listing options = {
+      language   = Java,
+      #1, % HACK to avoid that setting another language overrides other settings (why?)
+      style      = tuhhlstSlideStyle,
+    },
+  },
+}
+
+
+\newtcblisting{tuhhlisting}[1][]{%
+  tuhhlst = {#1},
+}
+
+
+\newcommand\tuhhinputlisting[2][]{%
+  \tcbinputlisting{%
+    tuhhlst = {#1},
+    listing file = #2,
+  }
+}
+
+
+\makeatother
+
+
+\endinput
