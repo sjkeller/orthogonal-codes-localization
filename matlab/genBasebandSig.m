@@ -1,6 +1,11 @@
 function p = genBasebandSig(cinit,M,T,fs,rolloff)
     %ltePSSCHPRBS(ue,n)
-    c = ltePRBS(cinit,M,'signed'); % generates pseudorandom bin sequence of length M
+    walsh = comm.WalshCode;
+    walsh.Length = cinit;
+    walsh.SamplesPerFrame = M;
+    disp(walsh);
+    c = walsh();
+    %c = ltePRBS(cinit,M,'signed'); % generates pseudorandom bin sequence of length M
     %c = comm.GoldSequence(cinit, M);
     p = [];
     Nsym = floor(T/M*fs); % samples per symbol
