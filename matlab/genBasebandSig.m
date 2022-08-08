@@ -1,14 +1,16 @@
-function p = genBasebandSig(cinit,M,T,fs,rolloff,method)
-    
+function p = genBasebandSig(cinit,M,T,fs,rolloff,method, fpoly, spoly)
+                            %'Polynomial',,... [1 1 1 0 1 1 0 1 1 0 1 1 0]
+                            %[13 12 10 9 7 6 5 1 0]
+                            %[13 4 3 1 0]
     switch method
         case "prbs"
             c = ltePRBS(cinit,M,'signed');
         case "gold"
-            gold = comm.GoldSequence("FirstPolynomial",[16 2 0], ...
-                    "SecondPolynomial",[16 8 5 2 0], ...
-                    'FirstInitialConditions',[0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1],...
-                    'SecondInitialConditions',[0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1],...
-                    'SamplesPerFrame',M);
+            gold = comm.GoldSequence("FirstPolynomial", fpoly,...
+                    "SecondPolynomial", spoly,...
+                    'FirstInitialConditions', int2bit(cinit, max(fpoly)),...
+                    'SecondInitialConditions', int2bit(cinit + 2, max(spoly)),...
+                    'SamplesPerFrame',(2^max(spoly) - 1));
             c = gold();
         case "walsh"
             walsh = comm.WalshCode;
@@ -16,33 +18,36 @@ function p = genBasebandSig(cinit,M,T,fs,rolloff,method)
             walsh.SamplesPerFrame = M;
             c = walsh();
         case "kasami"
-            kasami = comm.KasamiSequence('SamplesPerFrame',M,...
-                        'Polynomial',[16 8 4 3 2 0],...
-                        'InitialConditions',[0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1]);
+            kasami = comm.KasamiSequence('SamplesPerFrame', (2^max(poly) - 1),...
+                        'Polynomial', poly,...
+                        'InitialConditions', int2bit(cinit, max(poly)));
             c = kasami();
         case "lfsr"
-            pnlfsr = comm.PNSequence('Polynomial',[3 2 0], ...
-                        'SamplesPerFrame',M,'InitialConditions',[0 0 1]);
+            pnlfsr = comm.PNSequence('SamplesPerFrame', (2^max(poly) - 1),...
+                        'Polynomial', poly, ...
+                        'InitialConditions', int2bit(cinit, max(poly)));
             c = pnlfsr();
         otherwise
             disp("method not supported");
             return;
     end
     c(c==0) = -1;
-    Nsym = floor(T/M*fs); % samples per symbol
+    %Nsym = floor(T/M*fs); % samples per symbol 
     %disp(c);
      % generates pseudorandom bin sequence of length M
     %
-    p = [];
-    for m = 1:M
-        p = [p c(m)*ones(1,Nsym)]; % create 1x(NSym*M) vector
-    end
-    b = rcosdesign(rolloff,4*Nsym,Nsym); % get coefficients of cosinus FIR filter
+    % remove cosine FIR for evaluation
+    %p = [];
+    %for m = 1:M
+    %    p = [p c(m)*ones(1,Nsym)]; % create 1x(NSym*M) vector
+    %end
+    %b = rcosdesign(rolloff,4*Nsym,Nsym); % get coefficients of cosinus FIR filter
     % add samples
-    delay = floor(length(b)/2); % group delay
-    p = [p zeros(1,delay)];
-    p = filter(b,1,p);
+    %delay = floor(length(b)/2); % group delay
+    %p = [p zeros(1,delay)];
+    %p = filter(b,1,p);
 
     % remove filter delay
-    p = p(delay+1:end);
+    %p = p(delay+1:end);
+    p = c;
 end
