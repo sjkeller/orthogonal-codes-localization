@@ -17,6 +17,14 @@
 * Implementation and documentation of MATLAB scripts
 * Researching good Python libraries for research subject
 
+CURRENT TODOS:
+
+* remove mean plot wont matter anyway
+* 100ms per whole sequence and round about 1ms for a bit
+* using multiple plots for correlation coeffincent 
+* bandwith and data rate (read pulse shaping tech paper)
+* max bandwith mode: 25khz simulator 20khz
+
 ## third stage 09-22 to 12-22 (20h / week)
 
 * IMU for better position approximation while using EKM
