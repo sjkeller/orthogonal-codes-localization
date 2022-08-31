@@ -23,9 +23,27 @@ The gold code which has the highest similarity to Gaussian random variable has a
 
 \subsection{Kasami Codes}
 
-Kasami sequences are constructed in the same fashion by using m-sequencs. But now the second sequence which is used in the modulo sum is formed by decimating the default m-sequence by  $2^{m/2}$ \cite{proakis08} \cite{sarwate80} \cite{peterson72}. 
+Kasami sequences are constructed in the same fashion by using m-sequences with the exception that a second sequence, which is used in the modulo sum, is formed by decimating the default m-sequence by  $2^{m/2}$ \cite{proakis08} \cite{sarwate80} \cite{peterson72}. 
 
-\subsection{Comparison}
+\section{Comparison}
+
+For the localization process by orthogonal codes certain criteria needs to be met, which were named in the first chapter. To compare the before explained code types three measures are introduced. \\ 
+The first one is the peak to side-lobe ratio (PSR) \ref{eq:psr}. This measure is defined by subtracting the mean from the peak of the auto-correlation. Then this value get divided by the standard deviation of the same auto-correlation. A higher PSR value signifies a smaller error between the auto correlation and the perfect Dirac rsulting in better detection capability. The second one is the ratio between the auto-correlation peak and the maximum of the cross-correlation (ACR) \ref{eq:acr}. Here a higher value indicates good code separation qualities. The last one is the correlation coefficient showing if there are similar anchros \ref{eq:coeff}, which would be a bad indicator.
+
+\begin{equation}
+PSR=\dfrac{max\{x_{ac}-\overline{x_{ac}}\}}{\sigma_{ac}}
+\label{eq:psr}
+\end{equation}
+
+\begin{equation}
+ACR=\dfrac{max\{x_{ac}\}}{max\{{x_{cc}\}}}
+\label{eq:acr}
+\end{equation}
+
+\begin{equation}
+\rho(a1,a2)=\dfrac{cov\{a1,a2\}}{\sigma_{a1}\cdot\sigma_{a2}}
+\label{eq:coeff}
+\end{equation}
 
 \fignoframe[width=\paperwidth]{images/matlabplots/mseq\_10ms}{Basic structure of an LFSR (Linear Feedback Register). \cite{proakis08}}{fig:framelessFigures}
 \fignoframe{images/matlabplots/gold\_10ms}{Basic structure of an LFSR (Linear Feedback Register). \cite{proakis08}}{fig:framelessFigures}
