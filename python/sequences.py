@@ -1,6 +1,11 @@
+from polys import PREFERRED
 from scipy import signal as sig
 import numpy as np
 import plotly.express as px
+
+def oct2binarray(code_oct: int):
+    code = [int(d) for d in bin(int(str(code_oct), 8))[2:]]
+    return code
 
 def gold_seq(seq_u: np.ndarray, seq_v: np.ndarray, shift: int):
     seq_v = np.roll(seq_v, shift)
@@ -15,21 +20,38 @@ def kasami_seq(seq_u: np.ndarray, shift: int, deg: int):
     seq_w = np.roll(seq_w, shift)
     return seq_u ^ seq_w
 
-test = sig.max_len_seq(8, [0, 0, 0, 0, 0, 0, 0, 1])[0]
-
-print(type(test))
-fig = px.bar(test)
-fig.show()
-
-code_a = sig.max_len_seq(8, [1, 0, 0, 1, 0, 0, 1, 1])[0]
-code_b = sig.max_len_seq(8, [1, 1, 0, 0, 1, 0, 0, 1])[0]
-
-gold_code = gold_seq(code_a, code_b, 4)
-fig = px.bar(gold_code)
-fig.show()
-
-kasami_code = kasami_seq(code_a, 4, 8)
-fig = px.bar(kasami_code)
-fig.show()
-
 # @TODO: fix kasami, implement all steps until waveform export 
+
+def main():
+
+    deg = 9
+
+    # select preferred polynomials
+    poly_a = PREFERRED[deg - 1][0]
+    poly_b = PREFERRED[deg - 1][1]
+
+    # convert octal polynomials to binary array
+    poly_a = oct2binarray(poly_a)
+    poly_b = oct2binarray(poly_b)
+
+    print(poly_a)
+    print(poly_b)
+
+    # generate maximal length sequence from polynomials
+    code_a = sig.max_len_seq(deg, poly_a)[0]
+    code_b = sig.max_len_seq(deg, poly_b)[0]
+
+    # generate gold codes
+    gold_code = gold_seq(code_a, code_b, 4)
+
+    # generate kasami codes
+    kasami_code = kasami_seq(code_a, 4, deg)
+
+    fig = px.bar(gold_code)
+    fig.show()
+
+    fig = px.bar(kasami_code)
+    fig.show()
+
+if __name__ == "__main__":
+    main()

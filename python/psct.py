@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from pip import main
 
 def genPRBS(cinit: int, length: int, signed: bool = True):
 
@@ -39,3 +40,10 @@ plt.figure()
 plt.plot(seq, drawstyle='steps', label='PRBS-31')
 plt.legend()
 plt.show()
+
+def main():
+    x = 
+    code = [int(d) for d in str(oct(x))[2:]]
+
+if __name__ == "__main__":
+    main()
