@@ -1,7 +1,26 @@
 from polys import PREFERRED
 from scipy import signal as sig
+from itertools import combinations
 import numpy as np
 import plotly.express as px
+
+def bin2sign(code: np.ndarray):
+    """Replaces binary with signed values
+
+    Replaces values 0 and 1 with +1 and -1.
+
+    Args
+    ----
+    code: np.ndarray
+        code as binary array
+
+    Returns
+    -------
+    - signed values as array
+    """
+    code[code == 1] = -1
+    code[code == 0] = 1
+    return code
 
 def oct2binarray(code_oct: int):
     """Converts octal to binary arrays
@@ -69,15 +88,30 @@ def kasami_seq(seq_u: np.ndarray, shift: int, deg: int):
     seq_w = np.roll(seq_w, shift)
     return seq_u ^ seq_w
 
-# @TODO: fix kasami, implement all steps until waveform export 
+# @TODO: fix kasami, implement all steps until waveform export, basisband 
 
 def main():
 
-    deg = 9
+    deg = 10
+
+    gold_set_size = 2 ** deg + 1
+    kasami_set_size = 2 ** (deg // 2)
+
+    gold_codes = []
+    kasami_codes = []
+
+    gold_ac = []
+    kasami_ac = []
+    gold_cc = []
+    kasami_cc = []
+    gold_psr = []
+    gold_acr = []
+    kasami_psr = []
+    kasami_acr = []
 
     # select preferred polynomials
-    poly_a = PREFERRED[deg][0]
-    poly_b = PREFERRED[deg][1]
+    poly_a = PREFERRED[deg - 1][0]
+    poly_b = PREFERRED[deg - 1][1]
 
     # convert octal polynomials to binary array
     poly_a = oct2binarray(poly_a)
@@ -87,20 +121,57 @@ def main():
     print(poly_b)
 
     # generate maximal length sequence from polynomials
-    code_a = sig.max_len_seq(deg + 1, poly_a)[0]
-    code_b = sig.max_len_seq(deg + 1, poly_b)[0]
+    code_a = sig.max_len_seq(deg, poly_a)[0]
+    code_b = sig.max_len_seq(deg, poly_b)[0]
 
-    # generate gold codes
-    gold_code = gold_seq(code_a, code_b, 4)
+    # generate full set of gold sequences and their autocorrelation
+    for i in range(gold_set_size):
+        gold_code = bin2sign(gold_seq(code_a, code_b, i))
+        gold_codes.append(gold_code)
+        gold_ac.append(np.correlate(gold_code, gold_code, mode='full'))
+        """if i == 800:
+            fig = px.line(gold_ac[-1])
+            fig.show()"""
 
-    # generate kasami codes
-    kasami_code = kasami_seq(code_a, 4, deg)
 
-    fig = px.bar(gold_code)
+    # generate full set of kasami sequences and their autocorrelation
+    for i in range(kasami_set_size):
+        kasami_code = bin2sign(kasami_seq(code_a, i, deg))
+        kasami_codes.append(kasami_code) 
+        kasami_ac.append(np.correlate(kasami_code, kasami_code, mode='full'))
+
+
+    # generate all cross-correlations
+    gold_seq_pairs = combinations(gold_codes, 2)
+    kasami_seq_pairs = combinations(kasami_codes, 2)
+    for pair in gold_seq_pairs:
+        gold_cc.append(np.correlate(pair[0], pair[1], mode='full'))
+
+    for pair in kasami_seq_pairs:
+        kasami_cc.append(np.correlate(pair[0], pair[1], mode='full'))
+
+    # calculate peak to sidelobe ratio for all autocorrelations
+    for ac in gold_ac:
+        gold_psr.append((np.max(ac) - np.mean(ac)) / np.std(ac))
+    for ac in kasami_ac:
+        kasami_psr.append((np.max(ac) - np.mean(ac)) / np.std(ac))
+
+
+
+    fig = px.line(gold_psr)
     fig.show()
 
-    fig = px.bar(kasami_code)
+    fig = px.line(kasami_psr)
     fig.show()
+
+    """fig = px.line(gold_acr)
+    fig.show()
+
+    fig = px.line(kasami_psr)
+    fig.show()
+
+    fig = px.line(kasami_acr)
+    fig.show()"""
 
 if __name__ == "__main__":
     main()
