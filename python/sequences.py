@@ -22,11 +22,12 @@ def bin2sign(code: np.ndarray):
     code[code == 0] = 1
     return code
 
-def oct2binarray(code_oct: int):
-    """Converts octal to binary arrays
+def oct2poly(code_oct: int):
+    """Converts octal polynom representation to polynomial degrees array
 
-    Gets octal representation as string to convet it into a integer.
+    Gets octal representation as string to converts it into a integer.
     It then converts it to a binary representation and iterates through every binary number to append it as an integer array.
+    After that it calcualtes the degrees of the binary polynom an appends them to an array.
     
     Args
     ----
@@ -35,12 +36,19 @@ def oct2binarray(code_oct: int):
 
     Returns
     -------
-    - array of binaries
+    - array of integer degrees of polynomial
     """
     code = [int(d) for d in bin(int(str(code_oct), 8))[2:]]
-    return code
+    poly = []
+    for i in range(len(code) - 1):
+        poly.append(code[i] * (len(code) - (i + 1)))
+    if code[-1]:
+        poly.append(1)
+    else:
+        poly.append(0)
+    return poly
 
-def gold_seq(seq_u: np.ndarray, seq_v: np.ndarray, shift: int):
+def gold_seq(seq_u: np.ndarray, seq_v: np.ndarray, ind: int):
     """Generates gold sequences
 
     Needs 2 maximum length sequences and uses them to make gold sequences by circular shifting and XORing.
@@ -52,18 +60,23 @@ def gold_seq(seq_u: np.ndarray, seq_v: np.ndarray, shift: int):
         numpy array of frist m-sequence
     seq_v: np.ndarray
         numpy array of second m-sequence
-    shift: int
-        shift parameter of gold sequence generation. 
+    index: int
+        indexation of gold sequence set
     
     Returns
     -------
     - numpy array of gold sequence
 
     """
-    seq_v = np.roll(seq_v, shift)
-    return seq_u ^ seq_v
+    if ind == 0:
+        return seq_u
+    elif ind == 1:
+        return seq_v
+    else:
+        seq_v = np.roll(seq_v, 2 - ind)
+        return seq_u ^ seq_v
 
-def kasami_seq(seq_u: np.ndarray, shift: int, deg: int):
+def kasami_seq(seq_u: np.ndarray, ind: int, deg: int):
     """Generates kasami sequences
 
     Needs one maximum length sequence and uses it to generate (small set of) kasami sequences by decimation, circular shiting and XORing.
@@ -73,26 +86,29 @@ def kasami_seq(seq_u: np.ndarray, shift: int, deg: int):
     ----
     seq_u: np.ndarray
         numpy array of m-sequence
-    shift: int
-        shift parameter of kasami sequence generation
+    index: int
+        indexation of kasami sequence set
 
     Returns
     -------
     - numpy array of kasami sequence
     """
-    seq_w = seq_u
-    dec = 1 + 2 ** (deg // 2) 
-    seq = seq_w[::dec]
-    seq[:] = 0
+    if ind == 0:
+        return seq_u
+    else:
+        seq_w = seq_u
+        dec = 1 + 2 ** (deg // 2) 
+        seq = seq_w[::dec]
+        seq[:] = 0
+        seq_w = np.roll(seq_w, 1 - ind)
 
-    seq_w = np.roll(seq_w, shift)
-    return seq_u ^ seq_w
+        return seq_u ^ seq_w
 
 # @TODO: fix kasami, implement all steps until waveform export, basisband 
 
 def main():
 
-    deg = 10
+    deg = 11
 
     gold_set_size = 2 ** deg + 1
     kasami_set_size = 2 ** (deg // 2)
@@ -110,49 +126,50 @@ def main():
     kasami_acr = []
 
     # select preferred polynomials
-    poly_a = PREFERRED[deg - 1][0]
-    poly_b = PREFERRED[deg - 1][1]
+    poly_a = PREFERRED[deg][0]
+    poly_b = PREFERRED[deg][1]
 
     # convert octal polynomials to binary array
-    poly_a = oct2binarray(poly_a)
-    poly_b = oct2binarray(poly_b)
+    poly_a = oct2poly(poly_a)
+    poly_b = oct2poly(poly_b)
 
     print(poly_a)
     print(poly_b)
 
     # generate maximal length sequence from polynomials
-    code_a = sig.max_len_seq(deg, poly_a)[0]
-    code_b = sig.max_len_seq(deg, poly_b)[0]
+    code_a = sig.max_len_seq(deg, (deg - 1) * [0] + [1], taps=poly_a)[0]
+    code_b = sig.max_len_seq(deg, (deg - 1) * [0] + [1], taps=poly_b)[0]
 
     # generate full set of gold sequences and their autocorrelation
-    for i in range(gold_set_size):
+    for i in range(2, gold_set_size):
         gold_code = bin2sign(gold_seq(code_a, code_b, i))
         gold_codes.append(gold_code)
         gold_ac.append(np.correlate(gold_code, gold_code, mode='full'))
-        """if i == 800:
+        if i == 100:
             fig = px.line(gold_ac[-1])
-            fig.show()"""
+            fig.show()
 
 
     # generate full set of kasami sequences and their autocorrelation
-    for i in range(kasami_set_size):
+    for i in range(2, kasami_set_size):
         kasami_code = bin2sign(kasami_seq(code_a, i, deg))
         kasami_codes.append(kasami_code) 
         kasami_ac.append(np.correlate(kasami_code, kasami_code, mode='full'))
 
 
-    # generate all cross-correlations
+    """# generate all cross-correlations
     gold_seq_pairs = combinations(gold_codes, 2)
     kasami_seq_pairs = combinations(kasami_codes, 2)
     for pair in gold_seq_pairs:
         gold_cc.append(np.correlate(pair[0], pair[1], mode='full'))
 
     for pair in kasami_seq_pairs:
-        kasami_cc.append(np.correlate(pair[0], pair[1], mode='full'))
+        kasami_cc.append(np.correlate(pair[0], pair[1], mode='full'))"""
 
     # calculate peak to sidelobe ratio for all autocorrelations
     for ac in gold_ac:
         gold_psr.append((np.max(ac) - np.mean(ac)) / np.std(ac))
+
     for ac in kasami_ac:
         kasami_psr.append((np.max(ac) - np.mean(ac)) / np.std(ac))
 
