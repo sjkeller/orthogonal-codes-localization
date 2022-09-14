@@ -1,12 +1,8 @@
-import py_compile
-from statistics import mean
 from polys import PREFERRED
 from scipy import signal as sig
-from itertools import combinations
 import numpy as np
-import plotly.express as px
-import matplotlib.pyplot as plt
 import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 
 def bin2sign(code: np.ndarray):
     """Replaces binary with signed values
@@ -20,7 +16,7 @@ def bin2sign(code: np.ndarray):
 
     Returns
     -------
-    - signed values as array
+    signed values as array
     """
     code[code == 1] = -1
     code[code == 0] = 1
@@ -40,7 +36,7 @@ def _oct2poly(code_oct: int):
 
     Returns
     -------
-    - array of integer degrees of polynomial
+    array of integer degrees of polynomial
     """
     code = [int(d) for d in bin(int(str(code_oct), 8))[2:]]
     poly = []
@@ -50,11 +46,8 @@ def _oct2poly(code_oct: int):
     return poly
 
 def _norm_corr(data_x: list[int], data_y: list[int]):
-    ndata_x = data_x 
-    ndata_y = data_y 
-    corr = sig.correlate(ndata_x, ndata_y, 'full')
-    return corr / len(ndata_x)
-
+    corr = sig.correlate(data_x, data_y, 'full')
+    return corr / len(data_x)
 
 def gold_seq(poly_u: int, poly_v: int, ind: int):
     """Generates gold sequences
@@ -73,7 +66,7 @@ def gold_seq(poly_u: int, poly_v: int, ind: int):
     
     Returns
     -------
-    - numpy array of gold sequence
+    numpy array of gold sequence
     """
     poly_u = _oct2poly(poly_u)
     poly_v = _oct2poly(poly_v)
@@ -108,11 +101,12 @@ def kasami_seq(poly_u: int, ind: int):
 
     Returns
     -------
-    - numpy array of kasami sequence
+    numpy array of kasami sequence
     """
     poly_u = _oct2poly(poly_u)
     deg = poly_u[0]
     seq_u = sig.max_len_seq(deg, (deg - 1) * [0] + [1], taps=poly_u)[0]
+    seq_u = np.roll(seq_u, 1)
 
     if ind == 0:
         return seq_u.astype('float64')
@@ -148,9 +142,10 @@ def main():
     kasami_acr = []
 
     # select preferred polynomials
-    poly_a = PREFERRED[deg][1]
-    poly_b = PREFERRED[deg][2]
-
+    poly_a = PREFERRED[deg][0]
+    poly_b = PREFERRED[deg][1]
+    poly_c = PREFERRED[deg][2]
+    poly_d = PREFERRED[deg][3]
 
     # generate full set of gold sequences and their autocorrelation
     for i in range(2, gold_set_size):
@@ -158,9 +153,8 @@ def main():
         gold_codes.append(gold_code)
         gold_ac.append(_norm_corr(gold_code, gold_code))
 
-
     # generate full set of kasami sequences and their autocorrelation
-    for i in range(2, kasami_set_size):
+    for i in range(2, gold_set_size - 1):
         kasami_code = bin2sign(kasami_seq(poly_a, i))
         kasami_codes.append(kasami_code) 
         kasami_ac.append(_norm_corr(kasami_code, kasami_code))
@@ -187,25 +181,18 @@ def main():
     best_kasami_psr = np.argmax(kasami_psr)
     worst_kasami_psr = np.argmin(kasami_psr)
 
-    figs = go.Figure()
+    figs_1 = make_subplots(rows=1, cols=2)
+    figs_1.add_trace(go.Scatter(y=(gold_ac[best_gold_psr]), mode='lines', name='Best Gold Autocorrelation'), row=1, col=1)
+    figs_1.add_trace(go.Scatter(y=(kasami_ac[best_kasami_psr]), mode='lines', name='Best Kasami Autocorrelation'), row=1, col=1)
+    figs_1.add_trace(go.Scatter(y=(gold_ac[worst_gold_psr]), mode='lines', name='Worst Gold Autocorrelation'), row=1, col=2)
+    figs_1.add_trace(go.Scatter(y=(kasami_ac[worst_kasami_psr]), mode='lines', name='Worst Kasami Autocorrelation'), row=1, col=2)
 
-    figs.add_trace(go.Scatter(y=(gold_ac[best_gold_psr]), mode='lines', name='Best Gold Autocorrelation'))
-    figs.add_trace(go.Scatter(y=(kasami_ac[best_kasami_psr]), mode='lines', name='Best Kasami Autocorrelation'))
-    figs.show()
+    figs_2 = make_subplots(rows=2, cols=1)
+    figs_2.add_trace(go.Scatter(y=gold_psr, mode='lines', name='Gold set PSR'), row=1, col=1)
+    figs_2.add_trace(go.Scatter(y=kasami_psr, mode='lines', name='Kasami set PSR'), row=2, col=1)
 
-    figs = go.Figure()
-
-    figs.add_trace(go.Scatter(y=(gold_ac[worst_gold_psr]), mode='lines', name='Worst Gold Autocorrelation'))
-    figs.add_trace(go.Scatter(y=(kasami_ac[worst_kasami_psr]), mode='lines', name='Worst Kasami Autocorrelation'))
-    figs.show()
-
-
-    """figs = go.Figure()
-
-    figs.add_trace(go.Histogram(y=gold_psr, mode='lines', name='Gold set PSR'))
-    figs.add_trace(go.Histogram(y=kasami_psr, mode='lines', name='Kasami set PSR'))
-
-    figs.show()"""
+    figs_1.show()
+    figs_2.show()
 
 
 
