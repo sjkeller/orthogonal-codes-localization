@@ -1,10 +1,11 @@
-from polys import PREFERRED
+from polys import GOLD, KASAMI
 from scipy import signal as sig
 import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
+from itertools import combinations
 
-def bin2sign(code: np.ndarray):
+def _bin2sign(code: np.ndarray):
     """Replaces binary with signed values
 
     Replaces values 0 and 1 with +1 and -1.
@@ -49,7 +50,34 @@ def _norm_corr(data_x: list[int], data_y: list[int]):
     corr = sig.correlate(data_x, data_y, 'full')
     return corr / len(data_x)
 
-def gold_seq(poly_u: int, poly_v: int, ind: int):
+def topk(data: list[int], k: int):
+    ind = []
+    data = np.asarray(data)
+    ind = np.argpartition(data, -k)[-k:]
+    ind[np.argsort(data[ind])]
+    return ind
+
+def psr_ratio(data: list[int]):
+    ac = sig.correlate(data, data, 'full')
+    ratio = (np.max(ac) - np.mean(ac)) / np.std(ac)
+    return ratio
+
+def acr_ratio(data_a: list[int], data_b: list[int]):
+    ac = 0.5 * sig.correlate(data_a, data_a, 'full') + 0.5 * sig.correlate(data_b, data_b, 'full')
+    cc = sig.correlate(data_a, data_b, 'full')
+    ratio = np.max(ac) / np.max(cc)
+    return ratio
+
+def m_seq(deg: int, ind: int = 0, pind: int = 1):
+    poly = GOLD[deg][1][pind]
+    poly_u = _oct2poly(poly)
+    init = (deg - 1) * [0] + [1]
+    seq_u = sig.max_len_seq(deg, init, taps=poly_u)[0]
+    seq_u = np.roll(seq_u, 1)
+    seq_u = np.roll(seq_u, -ind)
+    return _bin2sign(seq_u.astype('float64')), poly
+
+def gold_seq(deg: int, ind: int = 3, comb: int = 1):
     """Generates gold sequences
 
     Needs 2 maximum length sequences and uses them to make gold sequences by circular shifting and XORing.
@@ -68,9 +96,9 @@ def gold_seq(poly_u: int, poly_v: int, ind: int):
     -------
     numpy array of gold sequence
     """
-    poly_u = _oct2poly(poly_u)
-    poly_v = _oct2poly(poly_v)
-    deg = poly_u[0]
+    polys = list(combinations(GOLD[deg][1], 2))[comb]
+    poly_u = _oct2poly(polys[0])
+    poly_v = _oct2poly(polys[1])
     init = (deg - 1) * [0] + [1]
     seq_u = sig.max_len_seq(deg, init, taps=poly_u)[0]
     seq_v = sig.max_len_seq(deg, init, taps=poly_v)[0]
@@ -78,15 +106,15 @@ def gold_seq(poly_u: int, poly_v: int, ind: int):
     seq_v = np.roll(seq_v, 1)
 
     if ind == 0:
-        return seq_u.astype('float64')
+        return _bin2sign(seq_u.astype('float64')), polys
     elif ind == 1:
-        return seq_v.astype('float64')
+        return _bin2sign(seq_v.astype('float64')), polys
     else:
         seq_v = np.roll(seq_v, 2 - ind)
         code = seq_u ^ seq_v
-        return code.astype('float64')
+        return _bin2sign(code.astype('float64')), polys
 
-def kasami_seq(poly_u: int, ind: int):
+def kasami_seq(deg: int, ind: int = 3):
     """Generates kasami sequences
 
     Needs one maximum length sequence and uses it to generate (small set of) kasami sequences by decimation, circular shiting and XORing.
@@ -103,28 +131,28 @@ def kasami_seq(poly_u: int, ind: int):
     -------
     numpy array of kasami sequence
     """
-    poly_u = _oct2poly(poly_u)
-    deg = poly_u[0]
-    seq_u = sig.max_len_seq(deg, (deg - 1) * [0] + [1], taps=poly_u)[0]
+    poly_u = _oct2poly(KASAMI[deg][0])
+    poly_v = _oct2poly(KASAMI[deg][1])
+    init = (deg - 1) * [0] + [1]
+    seq_u = sig.max_len_seq(deg, init, taps=poly_u)[0]
+    seq_v = sig.max_len_seq(deg, init, taps=poly_v)[0]
     seq_u = np.roll(seq_u, 1)
+    seq_v = np.roll(seq_v, 1)
 
     if ind == 0:
-        return seq_u.astype('float64')
+        return _bin2sign(seq_u.astype('float64'))
+    elif ind == 1:
+        return _bin2sign(seq_v.astype('float64'))
     else:
-        seq_w = seq_u
-        dec = 1 + 2 ** (deg // 2) 
-        seq = seq_w[::dec]
-        seq[:] = 0
-        seq_w = np.roll(seq_w, 1 - ind)
-
-        code = seq_u ^ seq_w
-        return code.astype('float64')
+        seq_v = np.roll(seq_v, 2 - ind)
+        code = seq_u ^ seq_v
+        return _bin2sign(code.astype('float64'))
 
 # @TODO: fix kasami, implement all steps until waveform export, basisband 
 
 def main():
 
-    deg = 11
+    deg = 8
 
     gold_set_size = 2 ** deg + 1
     kasami_set_size = 2 ** (deg // 2)
@@ -142,31 +170,29 @@ def main():
     kasami_acr = []
 
     # select preferred polynomials
-    poly_a = PREFERRED[deg][0]
-    poly_b = PREFERRED[deg][1]
-    poly_c = PREFERRED[deg][2]
-    poly_d = PREFERRED[deg][3]
+   # polys = PREFERRED[deg]
 
-    # generate full set of gold sequences and their autocorrelation
+
+    """# generate full set of gold sequences and their autocorrelation
     for i in range(2, gold_set_size):
-        gold_code = bin2sign(gold_seq(poly_a, poly_b, i))
+        gold_code = _bin2sign(gold_seq(polys[0], polys[1], i))
         gold_codes.append(gold_code)
         gold_ac.append(_norm_corr(gold_code, gold_code))
 
     # generate full set of kasami sequences and their autocorrelation
-    for i in range(2, gold_set_size - 1):
-        kasami_code = bin2sign(kasami_seq(poly_a, i))
+    for i in range(2, kasami_set_size):
+        kasami_code = _bin2sign(kasami_seq(polys[0], i))
         kasami_codes.append(kasami_code) 
         kasami_ac.append(_norm_corr(kasami_code, kasami_code))
 
-    """# generate all cross-correlations
+    # generate all cross-correlations
     gold_seq_pairs = combinations(gold_codes, 2)
     kasami_seq_pairs = combinations(kasami_codes, 2)
     for pair in gold_seq_pairs:
         gold_cc.append(np.correlate(pair[0], pair[1], mode='full'))
 
     for pair in kasami_seq_pairs:
-        kasami_cc.append(np.correlate(pair[0], pair[1], mode='full'))"""
+        kasami_cc.append(np.correlate(pair[0], pair[1], mode='full'))
 
     # calculate peak to sidelobe ratio for all autocorrelations
     for ac in gold_ac:
@@ -182,9 +208,9 @@ def main():
     worst_kasami_psr = np.argmin(kasami_psr)
 
     figs_1 = make_subplots(rows=1, cols=2)
-    figs_1.add_trace(go.Scatter(y=(gold_ac[best_gold_psr]), mode='lines', name='Best Gold Autocorrelation'), row=1, col=1)
+    #figs_1.add_trace(go.Scatter(y=(gold_ac[best_gold_psr]), mode='lines', name='Best Gold Autocorrelation'), row=1, col=1)
     figs_1.add_trace(go.Scatter(y=(kasami_ac[best_kasami_psr]), mode='lines', name='Best Kasami Autocorrelation'), row=1, col=1)
-    figs_1.add_trace(go.Scatter(y=(gold_ac[worst_gold_psr]), mode='lines', name='Worst Gold Autocorrelation'), row=1, col=2)
+    #figs_1.add_trace(go.Scatter(y=(gold_ac[worst_gold_psr]), mode='lines', name='Worst Gold Autocorrelation'), row=1, col=2)
     figs_1.add_trace(go.Scatter(y=(kasami_ac[worst_kasami_psr]), mode='lines', name='Worst Kasami Autocorrelation'), row=1, col=2)
 
     figs_2 = make_subplots(rows=2, cols=1)
@@ -194,9 +220,7 @@ def main():
     figs_1.show()
     figs_2.show()
 
-
-
-    """fig = px.line(gold_acr)
+    fig = px.line(gold_acr)
     fig.show()
 
     fig = px.line(kasami_acr)
