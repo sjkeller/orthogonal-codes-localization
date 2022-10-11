@@ -1,5 +1,4 @@
 from itertools import combinations
-from itsdangerous import BadPayload
 import numpy as np
 import plotly.graph_objects as go
 
@@ -8,8 +7,9 @@ from sequences import gold_seq
 from polys import GOLD
 
 from commpy import filters as flt
-from scipy import signal as sig
+from scipy import signal as sig, ndimage as img
 from scipy.io import savemat
+from math import comb
 
 MATPATH = '/Users/sk/Library/CloudStorage/OneDrive-Persönlich/Studium/TUHH/3. Semester Master/Forschungsprojekt/keller_orthogonal-codes/python/output/signal.mat'
 
@@ -22,7 +22,7 @@ rolloff = 1/8       # FIR cosine filter coefficent
 fc = 62.5e3         # carrier freqency
 
 ### gold sequence generation
-deg = 8
+deg = 10
 codeLen = 2 ** deg + 1
 
 def _get_fftfunc(sig: np.ndarray, fs: float):
@@ -44,7 +44,7 @@ def gen_TB_signal(code: np.ndarray):
     ### shift spectrum to transmission band
     tSigTB = np.real(tSigBB * np.exp(2.j*np.pi*fc*time))
 
-    matobj = {'tSigTB': tSigTB}
+    matobj = {'tSigTB': tSigTB, 'time': time}
     savemat(MATPATH, matobj)
 
     return (time, tSigTB)
@@ -80,19 +80,49 @@ def corr_lag(x : np.ndarray, y: np.ndarray, fs: float):
     tCC = tCC[tLags > 0]
     tLags = tLags[tLags > 0]
 
-
     return (tLags, tCC)
+
+def ca_cfar(x: np.ndarray, trBinSize: int, guBinSize: int, faRate: float):
+
+
+    # +-----------+-----------+-----------+-----------+-----------+
+    # | train bin | guard bin | candidate | guard bin | train bin |
+    # +-----------+-----------+-----------+-----------+-----------+
+
+
+    binSize = x.size
+    sideSize = trBinSize + guBinSize
+
+
+    alpha = trBinSize * 2 * (faRate ** (-1/(trBinSize * 2)) - 1)
+
+    threshList = []
+
+
+    for i in range(sideSize, binSize - sideSize):
+        
+        fstSum = np.sum(x[i-sideSize:i+sideSize+1])
+        sndSum = np.sum(x[i-guBinSize:i+guBinSize+1])
+
+        estNoise = (fstSum - sndSum) / (trBinSize * 2)
+        threshList.append(alpha * estNoise)
+
+    return np.pad(threshList, (sideSize, binSize - sideSize), 'edge')
+
+
 
 def main():
 
     startSeed = 32
 
-    figure = make_subplots(rows=3, cols=1)
+    numOfAnchors = 5
+
+    figure = make_subplots(rows=numOfAnchors, cols=1)
     tSendSig = []
 
-    tDelays = [1e-3, 2e-3, 3e-3]
+    tDelays = [1e-3, 2e-3, 3e-3, 4e-3, 5e-3]
 
-    for i in range(startSeed, startSeed + 3):
+    for i in range(startSeed, startSeed + numOfAnchors):
         rawCode = gold_seq(deg, i, 2)[0]
         signal = gen_TB_signal(rawCode)
         signal = get_BB_signal(signal[0], signal[1])
@@ -101,7 +131,9 @@ def main():
 
     figure.show() 
 
-    figure = make_subplots(rows=3, cols=2)
+    numOfCorr = comb(numOfAnchors, 2)
+
+    figure = make_subplots(rows=numOfCorr, cols=2)
 
     index = 1
     for pair in combinations(tSendSig, 2):
@@ -116,15 +148,16 @@ def main():
         tauAC = sig.correlation_lags(len(si), len(si), 'same')
         figure.add_trace(go.Scatter(x=tauAC, y=SigAC, mode='lines', marker_color='#000'), row=index, col=2)
         index += 1
-
+    figure.update_layout(showlegend=False)
     figure.show() 
 
     figure = make_subplots(rows=1, cols=1)
     tSigSum = delay_sum(tSendSig, tDelays, fs)
     figure.add_trace(go.Scatter(x=tSigSum[0], y=tSigSum[1], mode='lines', marker_color='#000'), row=1, col=1)
+    figure.update_layout(showlegend=False)
     figure.show() 
 
-    figure = make_subplots(rows=3, cols=1)
+    figure = make_subplots(rows=numOfAnchors, cols=1)
     index = 1
     for si in tSendSig:
         si = np.append(si, [0] * (len(tSigSum[1]) - len(si)))
@@ -133,7 +166,60 @@ def main():
         lagInd = np.argmax(SigCC[1])
         figure.add_vline(SigCC[0][lagInd], line_color='#EF553B', line_width=3, line_dash='dash', row=index, col=1)
         index += 1
+    figure.update_layout(showlegend=False)
     figure.show() 
 
+def slider():
+    startSeed = 32
+
+    numOfAnchors = 3
+
+    figure = make_subplots(rows=numOfAnchors, cols=1)
+    tSendSig = []
+
+    tDelays = [4e-3, 5e-3, 10e-3]
+    for i in range(startSeed, startSeed + numOfAnchors):
+        rawCode = gold_seq(deg, i, 2)[0]
+        signal = gen_TB_signal(rawCode)
+        signal = get_BB_signal(signal[0], signal[1])
+        tSendSig.append(signal[1])
+
+    tSigSum = delay_sum(tSendSig, tDelays, fs)
+    #gwn = np.random.normal(0, 19, len(tSigSum[1]))
+    #tSigSum[1][:] += gwn
+
+    winLen = fs * 2e-4
+    alpha = 50
+
+    figure = make_subplots(rows=numOfAnchors, cols=1)
+    index = 1
+    for si in tSendSig:
+
+        si = np.append(si, [0] * (len(tSigSum[1]) - len(si)))
+        SigCC = corr_lag(tSigSum[1], si, fs)
+        figure.add_trace(go.Scatter(x=SigCC[0], y=SigCC[1], mode='lines', marker_color='#000'), row=index, col=1)
+
+        # applying estimate for upprt threshold
+        
+        #varSigSum = alpha * (wins.std(axis=-1) ** 2)
+        #varSigSum = np.append(varSigSum, [0] * (len(SigCC[1]) - len(varSigSum)))
+        #figure.add_trace(go.Scatter(x=SigCC[0], y=varSigSum, mode='lines', marker_color='#636EFA'), row=index, col=1)
+        varSigSum = []
+
+        varSigSum = np.abs(ca_cfar(SigCC[1], int(winLen), int(0.1 * winLen), 1e-3))
+
+        #wins = np.lib.stride_tricks.sliding_window_view(varSigSum, 60)
+        #varSigSum = np.ma.average(wins, axis=-1)
+        
+        figure.add_trace(go.Scatter(x=SigCC[0], y=varSigSum, mode='lines', marker_color='#636EFA'), row=index, col=1)
+        lagInd = np.argmax(SigCC[1])
+        figure.add_vline(SigCC[0][lagInd], line_color='#EF553B', line_width=3, line_dash='dash', row=index, col=1)
+        index += 1
+    figure.update_layout(showlegend=False)
+    figure.show() 
+
+
+
 if __name__ == "__main__":
-    main()
+    #main()
+    slider()
