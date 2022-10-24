@@ -8,7 +8,7 @@ from sequences import gold_seq
 
 MATSAVE = '/Users/sk/Library/CloudStorage/OneDrive-Persönlich/Studium/TUHH/3. Semester Master/Forschungsprojekt/uw-watermark-main/Watermark/input/signals/sigTB_'
 WAVLOAD = '/Users/sk/Library/CloudStorage/OneDrive-Persönlich/Studium/TUHH/3. Semester Master/Forschungsprojekt/uw-watermark-main/Watermark/output/'
-CHANNEL = 'CASTLE1'
+CHANNEL = 'CASTLE3'
 
 
 file_index = 0
@@ -27,10 +27,23 @@ targetSNR = 100       # targeted Signal Noise Ratio for addtive GWN generator
 watermarkDelay = 12e-3  # delay of watermark simulation time of flight
 
 ### gold sequence generation
-deg = 11
+deg = 10
 codeLen = 2 ** deg + 1
 
 def _get_fftfunc(sig: np.ndarray, fs: float):
+    """applies central shifted fast foruiert transformation
+
+    Args
+    ----
+    sig: np.ndarray
+        signal
+    fs: float
+        sample rate
+
+    Returns
+    -------
+    fast fourier transform and its frequencies
+    """
 
     fSig = np.fft.fft(sig)
     freq = np.fft.fftfreq(fSig.shape[0], 1/fs)
@@ -40,6 +53,21 @@ def _get_fftfunc(sig: np.ndarray, fs: float):
     return (freq, np.abs(fSig))
 
 def gen_TB_signal(time: np.ndarray, tSigBB: np.ndarray, createMat: bool = False):
+    """Generates transfer band signal and saves its optionally as mat file
+
+    Args
+    ----
+    time: np.ndarray
+        time axis of signal
+    tSigBB: np.ndarray
+        baseband signal
+    createMat: bool
+        create matlab object file
+
+    Returns
+    -------
+    time axis and transferband shifted signal
+    """
 
     global file_index
 
@@ -55,6 +83,21 @@ def gen_TB_signal(time: np.ndarray, tSigBB: np.ndarray, createMat: bool = False)
     return (time, tSigTB)
 
 def get_BB_signal(time: np.ndarray, tSigTB: np.ndarray, loadMat: bool = False):
+    """ Shifts transfer band signal back to baseband
+
+    Args
+    ----
+    time: np.ndrarray
+        time axis of signal
+    tSigTB: np.ndarray
+        trasnfer band signal
+    loadMat: bool
+        load transferband from wavefile
+
+    Returns
+    -------
+    time axis and baseband signal
+    """
 
     global load_index
 
@@ -62,9 +105,9 @@ def get_BB_signal(time: np.ndarray, tSigTB: np.ndarray, loadMat: bool = False):
 
     sigLen = len(tSigTB)
     if loadMat:
-        x, tSigTB = wavfile.read(WAVLOAD + filepath)
-        #tSigTB = tSigTB[:10230]
-        tSigTB = tSigTB[int(watermarkDelay * fs):(sigLen + int(watermarkDelay * fs))]
+        _, tSigTB = wavfile.read(WAVLOAD + filepath)
+        tSigTB = tSigTB[:sigLen]
+        #tSigTB = tSigTB[:(sigLen + int(watermarkDelay * fs))]
         print(load_index)
         load_index += 1
 
@@ -75,21 +118,52 @@ def get_BB_signal(time: np.ndarray, tSigTB: np.ndarray, loadMat: bool = False):
     b, a = sig.butter(sysOrd, bw, 'lowpass', fs=fs, output='ba')
     tSigBBr = sig.filtfilt(b, a, tSigBBr)
 
-
     return (time, tSigBBr)
 
 def delay_sum(signals: list[np.ndarray], delays: list[float], fs: float):
-    singalSumLen = int(np.floor(np.max(delays) * fs) + len(signals[0]) + 1)
+    """Creates a delayed sum of signals
+
+    Args
+    ----
+    signals: list[np.ndarray]
+        list of baseband signals
+    delays: list[float]
+        list of delays to be applied
+    fs: float
+        sample rate
+
+    Returns
+    -------
+    time axis of whole sum and the sum of signals
+    """
+
+    singalSumLen = int(np.floor(np.max(delays) * fs) + 2 * len(signals[0]))
     signalSum = np.zeros(singalSumLen)
     timeSum = np.linspace(0, Tsym * codeLen, singalSumLen)
     
     for s, d in zip(signals, delays):
-        index = range(int(np.floor(d * fs) + 1), int((np.floor(d * fs) + len(s) + 1)))
+        index = range(int(np.floor((watermarkDelay - d) * fs) + 1), int((np.floor((watermarkDelay - d) * fs) + len(s) + 1)))
         signalSum[index] = signalSum[index] + s
 
     return (timeSum, signalSum)
 
 def corr_lag(x : np.ndarray, y: np.ndarray, fs: float):
+    """Calculates correlation with its lags
+
+    Args
+    ----
+    x: np.ndarray
+        first singal
+    y: np.ndarray
+        second signal
+    fs: float
+        sample rate
+
+    Returns
+    -------
+    lags and cross-correlation itself
+    """
+
     sigLen = len(x)
     tCC = sig.correlate(x, y, 'same')
     normDiv = np.sqrt(sig.correlate(x, x, 'same')[int(sigLen/2)] * sig.correlate(y, y, 'same')[int(sigLen/2)])
@@ -101,6 +175,23 @@ def corr_lag(x : np.ndarray, y: np.ndarray, fs: float):
     return (tLags, tCC)
 
 def ca_cfar(x: np.ndarray, trBinSize: int, guBinSize: int, faRate: float):
+    """ Applies CA-FAR threshold on signal
+
+    Args
+    ----
+    x: np.ndarray
+        signal
+    trBinSize: int
+        size of the (half) train bin
+    guBinSize: int
+        size if the (half) guard bin
+    faRate: float
+        false alarm rate
+
+    Returns
+    -------
+    zero padded threshold
+    """
 
     # ┌-----------┬-----------┬-----------┬-----------┬-----------┐
     # | train bin | guard bin | candidate | guard bin | train bin |
@@ -167,7 +258,7 @@ def simulator(tDelays: list[float], numOfAnchors: int, addGWN = False, startSeed
         _, tSigTB = gen_TB_signal(time, tSigBB, False)
 
         ### shift back to baseband (and load matfile if enabled)
-        _, tSigBBr = get_BB_signal(time, tSigTB, False)
+        _, tSigBBr = get_BB_signal(time, tSigTB, True)
 
         ### add white noise
         if addGWN:
@@ -224,7 +315,7 @@ def simulator(tDelays: list[float], numOfAnchors: int, addGWN = False, startSeed
 
 
 def main():
-    simulator([10e-3, 20e-3, 30e-3, 40e-3, 50e-3, 60e-3, 70e-3, 80e-3, 90e-3], 9, showAll=True, addGWN=False)
+    simulator([2e-3, 4e-3, 8e-3], 3, showAll=False, addGWN=False)
     #showButterBode()
 
 if __name__ == "__main__":
