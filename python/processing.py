@@ -8,7 +8,7 @@ from sequences import gold_seq
 
 MATSAVE = '/Users/sk/Library/CloudStorage/OneDrive-Persönlich/Studium/TUHH/3. Semester Master/Forschungsprojekt/uw-watermark-main/Watermark/input/signals/sigTB_'
 WAVLOAD = '/Users/sk/Library/CloudStorage/OneDrive-Persönlich/Studium/TUHH/3. Semester Master/Forschungsprojekt/uw-watermark-main/Watermark/output/'
-CHANNEL = 'PLANE1'
+CHANNEL = 'CASTLE1'
 
 
 file_index = 0
@@ -23,14 +23,12 @@ rolloff = 1/8       # FIR cosine filter coefficent
 fc = 62.5e3         # carrier freqency
 sysOrd = 5          # order of butterworth filter
 
-watermarkDelay = 12e-3
+targetSNR = 100       # targeted Signal Noise Ratio for addtive GWN generator
+watermarkDelay = 12e-3  # delay of watermark simulation time of flight
 
 ### gold sequence generation
-deg = 10
+deg = 11
 codeLen = 2 ** deg + 1
-
-### time axis
-#time = np.linspace(0, Tsym * codeLen, len(tSigBB))
 
 def _get_fftfunc(sig: np.ndarray, fs: float):
 
@@ -136,7 +134,7 @@ def showButterBode():
     figure.add_trace(go.Scatter(x=fBode, y=dBMag, fill='tozerox', marker_color='#EF553B'), row=1, col=1)
     figure.add_trace(go.Scatter(x=fBode, y=fPha, fill='tozerox'), row=2, col=1)
     figure.update_xaxes(type='log')
-    figure.update_layout( title='Butterworth Low-Pass of Order 5 and 20kHz cutoff', showlegend=False)
+    figure.update_layout(title='Butterworth Low-Pass of Order 5 and 20kHz cutoff', showlegend=False)
     figure.show()
 
 def get_snr_noise(signal: np.ndarray, snr: float):
@@ -156,6 +154,7 @@ def simulator(tDelays: list[float], numOfAnchors: int, addGWN = False, startSeed
 
         ### generate gold code
         rawCode = gold_seq(deg, i, 2)[0]
+        #rawCode = np.random.uniform(-1, 1, codeLen)
 
         ### upsample and filter via FIR cosine
         filter = flt.rcosfilter(1024, rolloff, Tsym, fs)[1]
@@ -165,15 +164,15 @@ def simulator(tDelays: list[float], numOfAnchors: int, addGWN = False, startSeed
         print("sigBB len", len(tSigBB))
 
         ### shift spectrum to transmission band
-        _, tSigTB = gen_TB_signal(time, tSigBB, True)
+        _, tSigTB = gen_TB_signal(time, tSigBB, False)
 
-        ### add white noise (@TODO via SNR)
+        ### shift back to baseband (and load matfile if enabled)
+        _, tSigBBr = get_BB_signal(time, tSigTB, False)
+
+        ### add white noise
         if addGWN:
-            gwn = get_snr_noise(tSigTB, 1000)
-            tSigTB[:] += gwn
-
-        ### shift back to baseband
-        _, tSigBBr = get_BB_signal(time, tSigTB, True)
+            gwn = get_snr_noise(tSigBBr, targetSNR)
+            tSigBBr[:] += gwn
 
         tSendSig.append(tSigBBr)
 
@@ -204,6 +203,8 @@ def simulator(tDelays: list[float], numOfAnchors: int, addGWN = False, startSeed
         fTB, fSigTB = _get_fftfunc(tSigTB, fs)
         fBBr, fSigBBr = _get_fftfunc(tSigBBr, fs)
 
+        print("signal length in s", len(tSigTB) / fs)
+
         ### code to transfer band process plots and backwards process plots
 
         figure = make_subplots(rows=3, cols=1)
@@ -223,7 +224,7 @@ def simulator(tDelays: list[float], numOfAnchors: int, addGWN = False, startSeed
 
 
 def main():
-    simulator([2e-3, 4e-3, 8e-3], 3, showAll=False, addGWN=False)
+    simulator([10e-3, 20e-3, 30e-3, 40e-3, 50e-3, 60e-3, 70e-3, 80e-3, 90e-3], 9, showAll=True, addGWN=False)
     #showButterBode()
 
 if __name__ == "__main__":

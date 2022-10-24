@@ -1,3 +1,4 @@
+from turtle import width
 from sequences import m_seq, gold_seq, kasami_seq, psr_ratio, acr_ratio, topk, _norm_corr
 import numpy as np
 from polys import GOLD
@@ -7,6 +8,7 @@ from math import comb
 
 from scipy import stats
 
+DPIEXPORT = 400
 
 def main():
 
@@ -84,35 +86,41 @@ def main():
     kasami_best_acr_cc = _norm_corr(kasami_seq(deg, sel_a), kasami_seq(deg, sel_b))
 
     figs_mseq = make_subplots(rows=2, cols=2)
-    figs_mseq.add_trace(go.Scatter(x=mseq_pols, y=mseq_psr, mode='lines', name="PSR"), row=1, col=1)
-    figs_mseq.add_trace(go.Scatter(x=mseq_pols, y=mseq_acr, mode='lines', name="ACR"), row=2, col=1)
+    figs_mseq.add_trace(go.Scatter(x=mseq_pols, y=mseq_psr, mode='lines', name="PSR", marker_color='#EF553B'), row=1, col=1)
+    figs_mseq.add_trace(go.Scatter(x=mseq_pols, y=mseq_acr, mode='lines', name="ACR", marker_color='#636EFA'), row=2, col=1)
     #figs_mseq.add_trace(go.Scatter(x=gold_pairs, y=gold_ccf, mode='lines', name="Pearson"), row=3, col=1)
-    figs_mseq.add_trace(go.Scatter(y=mseq_best_psr_ac, mode='lines', name="best PSR AC"), row=1, col=2)
-    figs_mseq.add_trace(go.Scatter(y=mseq_best_acr_cc, mode='lines', name="best ACR CC"), row=2, col=2)
+    figs_mseq.add_trace(go.Scatter(y=mseq_best_psr_ac, mode='lines', name="best PSR AC", marker_color='#EF553B'), row=1, col=2)
+    figs_mseq.add_trace(go.Scatter(y=mseq_best_acr_cc, mode='lines', name="best ACR CC", marker_color='#636EFA'), row=2, col=2)
     text = "Maximum length sequence code evaluation of degree " + str(deg)
     figs_mseq.update_layout(title_text = text)
-    figs_mseq.show()
+    #figs_mseq.show()
 
 
     figs_gold = make_subplots(rows=2, cols=2)
-    figs_gold.add_trace(go.Scatter(x=gold_pairs, y=gold_psr, mode='lines', name="PSR"), row=1, col=1)
-    figs_gold.add_trace(go.Scatter(x=gold_pairs, y=gold_acr, mode='lines', name="ACR"), row=2, col=1)
+    figs_gold.add_trace(go.Scatter(x=gold_pairs, y=gold_psr, mode='lines', name="PSR", marker_color='#EF553B'), row=1, col=1)
+    figs_gold.add_trace(go.Scatter(x=gold_pairs, y=gold_acr, mode='lines', name="ACR", marker_color='#636EFA'), row=2, col=1)
     #figs_gold.add_trace(go.Scatter(x=gold_pairs, y=gold_ccf, mode='lines', name="Pearson"), row=3, col=1)
-    figs_gold.add_trace(go.Scatter(y=gold_best_psr_ac, mode='lines', name="best PSR AC"), row=1, col=2)
-    figs_gold.add_trace(go.Scatter(y=gold_best_acr_cc, mode='lines', name="best ACR CC"), row=2, col=2)
+    figs_gold.add_trace(go.Scatter(y=gold_best_psr_ac, mode='lines', name="best PSR AC", marker_color='#EF553B'), row=1, col=2)
+    figs_gold.add_trace(go.Scatter(y=gold_best_acr_cc, mode='lines', name="best ACR CC", marker_color='#636EFA'), row=2, col=2)
     text = "Gold code evaluation of degree " + str(deg)
     figs_gold.update_layout(title_text = text)
-    figs_gold.show()
+    #figs_gold.show()
 
     figs_kasami = make_subplots(rows=2, cols=2)
-    figs_kasami.add_trace(go.Scatter(y=kasami_psr, mode='lines', name="PSR"), row=1, col=1)
-    figs_kasami.add_trace(go.Scatter(y=kasami_acr, mode='lines', name="ACR"), row=2, col=1)
+    figs_kasami.add_trace(go.Scatter(y=kasami_psr, mode='lines', name="PSR", marker_color='#EF553B'), row=1, col=1)
+    figs_kasami.add_trace(go.Scatter(y=kasami_acr, mode='lines', name="ACR", marker_color='#636EFA'), row=2, col=1)
     #figs_kasami.add_trace(go.Scatter(y=kasami_ccf, mode='lines', name="Pearson"), row=3, col=1)
-    figs_kasami.add_trace(go.Scatter(y=kasami_best_psr_ac, mode='lines', name="best PSR AC"), row=1, col=2)
-    figs_kasami.add_trace(go.Scatter(y=kasami_best_acr_cc, mode='lines', name="best ACR CC"), row=2, col=2)
+    figs_kasami.add_trace(go.Scatter(y=kasami_best_psr_ac, mode='lines', name="best PSR AC", marker_color='#EF553B'), row=1, col=2)
+    figs_kasami.add_trace(go.Scatter(y=kasami_best_acr_cc, mode='lines', name="best ACR CC", marker_color='#636EFA'), row=2, col=2)
     text = "Kasami code evaluation of degree " + str(deg)
     figs_kasami.update_layout(title_text = text)
-    figs_kasami.show()
+    #figs_kasami.show()
+
+    scFa = 1
+
+    figs_mseq.write_image("img/mseq_eva.pdf", scale=scFa, width= 1.5 * DPIEXPORT, height= 2 * DPIEXPORT)
+    figs_gold.write_image("img/gold_eva.pdf", scale=scFa, width= 1.5 * DPIEXPORT, height= 2 * DPIEXPORT)
+    figs_kasami.write_image("img/kasami_eva.pdf", scale=scFa, width= 1.5 * DPIEXPORT, height= 2 * DPIEXPORT)
 
     """# generate all cross-correlations
         gold_seq_pairs = combinations(gold_codes, 2)
