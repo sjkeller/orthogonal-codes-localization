@@ -1,4 +1,3 @@
-from turtle import width
 from sequences import m_seq, gold_seq, kasami_seq, psr_ratio, acr_ratio, topk, _norm_corr
 import numpy as np
 from polys import GOLD
@@ -93,7 +92,7 @@ def main():
     figs_mseq.add_trace(go.Scatter(y=mseq_best_acr_cc, mode='lines', name="best ACR CC", marker_color='#636EFA'), row=2, col=2)
     text = "Maximum length sequence code evaluation of degree " + str(deg)
     figs_mseq.update_layout(title_text = text)
-    #figs_mseq.show()
+    figs_mseq.show()
 
 
     figs_gold = make_subplots(rows=2, cols=2)
@@ -104,7 +103,7 @@ def main():
     figs_gold.add_trace(go.Scatter(y=gold_best_acr_cc, mode='lines', name="best ACR CC", marker_color='#636EFA'), row=2, col=2)
     text = "Gold code evaluation of degree " + str(deg)
     figs_gold.update_layout(title_text = text)
-    #figs_gold.show()
+    figs_gold.show()
 
     figs_kasami = make_subplots(rows=2, cols=2)
     figs_kasami.add_trace(go.Scatter(y=kasami_psr, mode='lines', name="PSR", marker_color='#EF553B'), row=1, col=1)
@@ -114,13 +113,13 @@ def main():
     figs_kasami.add_trace(go.Scatter(y=kasami_best_acr_cc, mode='lines', name="best ACR CC", marker_color='#636EFA'), row=2, col=2)
     text = "Kasami code evaluation of degree " + str(deg)
     figs_kasami.update_layout(title_text = text)
-    #figs_kasami.show()
+    figs_kasami.show()
 
     scFa = 1
 
-    figs_mseq.write_image("img/mseq_eva.pdf", scale=scFa, width= 1.5 * DPIEXPORT, height= 2 * DPIEXPORT)
-    figs_gold.write_image("img/gold_eva.pdf", scale=scFa, width= 1.5 * DPIEXPORT, height= 2 * DPIEXPORT)
-    figs_kasami.write_image("img/kasami_eva.pdf", scale=scFa, width= 1.5 * DPIEXPORT, height= 2 * DPIEXPORT)
+    #figs_mseq.write_image("img/mseq_eva.pdf", scale=scFa, width= 1.5 * DPIEXPORT, height= 2 * DPIEXPORT)
+    #figs_gold.write_image("img/gold_eva.pdf", scale=scFa, width= 1.5 * DPIEXPORT, height= 2 * DPIEXPORT)
+    #figs_kasami.write_image("img/kasami_eva.pdf", scale=scFa, width= 1.5 * DPIEXPORT, height= 2 * DPIEXPORT)
 
     """# generate all cross-correlations
         gold_seq_pairs = combinations(gold_codes, 2)
