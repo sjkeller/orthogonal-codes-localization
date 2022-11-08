@@ -6,6 +6,7 @@ from scipy import signal as sig
 from scipy.io import savemat, loadmat, wavfile
 from sequences import gold_seq
 
+DPIEXPORT = 400
 MATSAVE = '/Users/sk/Library/CloudStorage/OneDrive-Persönlich/Studium/TUHH/3. Semester Master/Forschungsprojekt/uw-watermark-main/Watermark/input/signals/sigTB_'
 WAVLOAD = '/Users/sk/Library/CloudStorage/OneDrive-Persönlich/Studium/TUHH/3. Semester Master/Forschungsprojekt/uw-watermark-main/Watermark/output/'
 CHANNEL = 'CASTLE3'
@@ -22,12 +23,16 @@ rolloff = 1/8       # FIR cosine filter coefficent
 fc = 62.5e3         # carrier freqency
 sysOrd = 5          # order of butterworth filter
 
-targetSNR = 1e2         # targeted Signal Noise Ratio for addtive GWN generator
+targetSNR = 100       # targeted Signal Noise Ratio for addtive GWN generator
 watermarkDelay = 12e-3  # delay of watermark simulation time of flight
 
 ### gold sequence generation
 deg = 10
 codeLen = 2 ** deg + 1
+
+def signaltonoise(sig: np.ndarray, noise: np.ndarray):
+    snr = np.mean(sig) / np.mean(noise)
+    return snr
 
 def _get_fftfunc(sig: np.ndarray, fs: float):
     """applies central shifted fast foruiert transformation
@@ -90,7 +95,16 @@ def gen_TB_signal(time: np.ndarray, tSigBB: np.ndarray, createMat: bool = False,
 
     return (time, tSigTB)
 
-def get_BB_signal(time: np.ndarray, tSigTB: np.ndarray, loadMat: bool = False):
+def testPlotting(sig, time, num):
+    fig = make_subplots(rows=2, cols=1)
+    fig.add_trace(go.Scatter(y=sig, x=time), row=1, col=1)
+    fSigT, freqT = _get_fftfunc(sig, fs)
+    fig.add_trace(go.Scatter(y=freqT, x=np.abs(fSigT)), row=2, col=1)
+    mytitle = "Test " + str(num)
+    fig.update_layout(title=mytitle)
+    fig.show()
+
+def get_BB_signal(time: np.ndarray, tSigTB: np.ndarray, loadMat: bool = False, delay: float = 0):
     """ Shifts transfer band signal back to baseband
 
     Args
@@ -117,16 +131,31 @@ def get_BB_signal(time: np.ndarray, tSigTB: np.ndarray, loadMat: bool = False):
         
         waveLen = loadmat(WAVLOAD + CHANNEL + "/sigTB_" + str(load_index) + "/bookkeeping.mat")
         waveLen = waveLen['bk'][0][0][2][0][1]
-        tSigTB = tSigTB[:waveLen]
-        tSigTB = tSigTB[:20460]
+        #tSigTB = tSigTB[:waveLen]
+        tSigTB = tSigTB[int(fs * delay):]
+        tSigTB = tSigTB[:len(time)]
         #tSigTB = tSigTB[:(sigLen + int(watermarkDelay * fs))]
         print(load_index)
         load_index += 1
 
+
+    ## test 1
+    #testPlotting(tSigTB, time, 1)
+
+    ### add white noise to not delayed part
+    gwn = get_snr_noise(tSigTB[int(delay * fs):], targetSNR)
+    tSigTB[int(delay * fs):] += gwn
+
+    print("signal to noise ratio", signaltonoise(tSigTB, gwn))
+
+    ## test 2
+    #testPlotting(tSigTB, time, 2)
+
     ### reshift spectrum to baseband
     tSigBBr = tSigTB * np.exp(2.j*np.pi*-fc*time)
 
-
+    ## test 3
+    #testPlotting(np.real(tSigBBr), time, 3)
 
     return (time, tSigBBr)
 
@@ -149,20 +178,20 @@ def delay_sum(signals: list[np.ndarray], delays: list[float], fs: float, watmark
     time axis of whole sum and the sum of signals
     """
 
-    if watmark:
-        singalSumLen = int(np.floor(np.max(delays) * fs) + 2 * len(signals[0]))
-    else:
-        singalSumLen = int(np.floor(np.max(delays) * fs) + len(signals[0]) + 1)
+    #if watmark:
+    #    singalSumLen = int(np.floor(np.max(delays) * fs) + 2 * len(signals[0]))
+    #else:
+    singalSumLen = int(np.floor(np.max(delays) * fs) + len(signals[0]) + 1)
 
     signalSum = np.zeros(singalSumLen)
     timeSum = np.linspace(0, Tsym * codeLen, singalSumLen)
     
     for s, d in zip(signals, delays):
 
-        if watmark:
-            index = range(int(np.floor((watermarkDelay - d) * fs) + 1), int((np.floor((watermarkDelay - d) * fs) + len(s) + 1)))
-        else:
-            index = range(int(np.floor(d * fs) + 1), int((np.floor(d * fs) + len(s) + 1)))
+        #if watmark:
+        #    index = range(int(np.floor((watermarkDelay - d) * fs) + 1), int((np.floor((watermarkDelay - d) * fs) + len(s) + 1)))
+        #else:
+        index = range(int(np.floor(d * fs) + 1), int((np.floor(d * fs) + len(s) + 1)))
 
         signalSum[index] = signalSum[index] + s
 
@@ -188,7 +217,7 @@ def corr_lag(x : np.ndarray, y: np.ndarray, fs: float):
     sigLen = len(x)
     tCC = sig.correlate(x, y, 'same')
     normDiv = np.sqrt(sig.correlate(x, x, 'same')[int(sigLen/2)] * sig.correlate(y, y, 'same')[int(sigLen/2)])
-    tCC /= normDiv
+    #tCC /= normDiv
 
     tLags = np.linspace(-0.5 * sigLen/fs, 0.5 * sigLen/fs, sigLen)
     tCC = tCC[tLags > 0]
@@ -234,9 +263,10 @@ def ca_cfar(x: np.ndarray, trBinSize: int, guBinSize: int, faRate: float, sort: 
         bin = x[i-binSize:i+binSize+1]
         guard = x[i-guBinSize:i+guBinSize+1]
 
-        if sort:
-            bin = np.sort(bin)
-            guard = np.sort(bin)[(len(bin) - guBinSize):(len(bin) + guBinSize)]
+        #if sort:
+        #    bin = np.sort(bin)
+        #    guard = np.sort(bin)[(len(bin) - guBinSize):(len(bin) + guBinSize)]
+        # ignore guard cells for sorte averaging
 
         binSum = np.sum(bin)
         guBinSum = np.sum(guard)
@@ -252,17 +282,29 @@ def showButterBode():
     sys = sig.butter(sysOrd, bw, 'lowpass', fs=fs)
     fBode, dBMag, fPha = sig.bode(sys)
 
-    figure = make_subplots(rows=2, cols=1, x_title='Frequency [deg]', subplot_titles=('Magnitude [dB]', 'Phase [deg]'))
+    figure = make_subplots(rows=1, cols=2, x_title='Frequency [deg]', subplot_titles=('Magnitude [dB]', 'Phase [deg]'))
     figure.add_trace(go.Scatter(x=fBode, y=dBMag, fill='tozerox', marker_color='#EF553B'), row=1, col=1)
-    figure.add_trace(go.Scatter(x=fBode, y=fPha, fill='tozerox'), row=2, col=1)
+    figure.add_trace(go.Scatter(x=fBode, y=fPha, fill='tozerox'), row=1, col=2)
     figure.update_xaxes(type='log')
     figure.update_layout(title='Butterworth Low-Pass of Order 5 and 20kHz cutoff', showlegend=False)
     figure.show()
 
+    #figure.write_image("img/bode.pdf", scale=1, width= 2.5 * DPIEXPORT, height= 1 * DPIEXPORT)
+
+def showRaisedCosine():
+    filter = flt.rcosfilter(1024, rolloff, Tsym, fs)[1]
+    figure = go.Figure()
+    figure.add_trace(go.Scatter(y=filter[388:650], marker_color='#000'))
+    figure.show()
+    #figure.write_image("img/cosfir.pdf", scale=1, width= 2.5 * DPIEXPORT, height= 1 * DPIEXPORT)
+
 def get_snr_noise(signal: np.ndarray, snr: float):
 
-    stdEst = np.sqrt(1/(snr * np.mean(signal ** 2)))
-    gwn = np.random.normal(0, np.real(stdEst), len(signal))
+    #stdEst = np.sqrt(np.mean(signal ** 2) / snr)
+    #print(stdEst)
+    #gwn = np.random.normal(0, np.real(stdEst), len(signal))
+
+    gwn = np.random.normal(size=len(signal))*np.std(signal)/snr
 
     return gwn
 
@@ -293,14 +335,12 @@ def simulator(tDelays: list[float], numOfAnchors: int, addGWN = False, startSeed
         ### shift back to baseband (and load matfile if enabled)
         _, tSigBBr = get_BB_signal(time, tSigTB, usesim)
 
-        ### add white noise to not delayed part
-        if addGWN:
-            gwn = get_snr_noise(tSigBBr[int(tDelays[i - startSeed] * fs):], targetSNR)
-            tSigBBr[int(tDelays[i - startSeed] * fs):] += gwn
-
         ### applying SysOrd order butterworth low pass forwards and backwards
         b, a = sig.butter(sysOrd, bw, 'lowpass', fs=fs, output='ba')
         tSigBBr = sig.filtfilt(b, a, tSigBBr)
+
+        ## test 4
+        #testPlotting(np.real(tSigBBr), time, 4)
 
         tSendSig.append(tSigBBr)
 
@@ -313,19 +353,20 @@ def simulator(tDelays: list[float], numOfAnchors: int, addGWN = False, startSeed
 
         si = np.append(si, [0] * (len(tSigSum[1]) - len(si)))
         SigCC = corr_lag(np.real(tSigSum[1]), np.real(si), fs)
-        varSigSum = ca_cfar(SigCC[1], int(winLen), int(0.1 * winLen), 1e-3)
+        varSigSum = ca_cfar(SigCC[1], int(winLen), int(0.1 * winLen), 1e-3, sort=False)
         lagInd = np.argmax(SigCC[1])
 
         figure.add_trace(go.Scatter(x=SigCC[0], y=SigCC[1], mode='lines', marker_color='#000'), row=index, col=1)
         figure.add_trace(go.Scatter(x=SigCC[0], y=varSigSum, mode='lines', marker_color='#636EFA'), row=index, col=1)
         figure.add_vline(SigCC[0][lagInd], line_color='#EF553B', line_width=3, line_dash='dash', row=index, col=1)
+        
 
         index += 1
 
-    fig_title = "code degree: " + str(deg) + ", watermark channel: " + CHANNEL + ", target SNR: " + str(10*np.log10(targetSNR)) + "dB"
+    fig_title = "code degree: " + str(deg) + ", watermark channel: " + CHANNEL + ", target SNR: " + str(20*np.log10(abs(targetSNR))) + "dB"
+    figure.update_layout(showlegend=False, title=fig_title, yaxis_range=[-5000,20000])
 
-
-    figure.update_layout(showlegend=False, title=fig_title)
+    
     figure.show() 
 
     if showAll:
@@ -347,7 +388,7 @@ def simulator(tDelays: list[float], numOfAnchors: int, addGWN = False, startSeed
         figure.add_trace(go.Bar(y=rawCode, name="bit domain", marker_color='#19D3F3'), row=1, col=1)
         figure.add_trace(go.Scatter(x=time, y=tSigBB, mode='lines', name="baseband signal", marker_color='#EF553B'), row=2, col=1)
         figure.add_trace(go.Scatter(x=time, y=tSigTB, mode='lines', name="carrier signal", marker_color='#636EFA'), row=2, col=1)
-        figure.add_trace(go.Scatter(x=time, y=np.real(tSigBBr), mode='lines', name="baseband signal", marker_color='#FFA51A'), row=2, col=1)
+        figure.add_trace(go.Scatter(x=time, y=np.real(tSigBBr), mode='lines', name="recv baseband signal", marker_color='#FFA51A'), row=2, col=1)
         figure.add_trace(go.Scatter(x=fBB, y=np.abs(fSigBB), fill='tozeroy', mode='lines', name="baseband", marker_color='#EF553B'), row=3, col=1)
         figure.add_trace(go.Scatter(x=fTB, y=np.abs(fSigTB), fill='tozeroy', mode='lines', name="carrier", marker_color='#636EFA'), row=3, col=1)
         figure.add_trace(go.Scatter(x=fBBr, y=np.abs(fSigBBr), fill='tozeroy', mode='lines', name="recv baseband", marker_color='#FFA51A'), row=3, col=1)
@@ -356,8 +397,9 @@ def simulator(tDelays: list[float], numOfAnchors: int, addGWN = False, startSeed
 
 
 def main():
-    simulator([20e-3, 30e-3, 40e-3], 3, showAll=True, addGWN=True, usesim=True)
+    simulator([20e-3, 30e-3, 40e-3], 3, showAll=False, addGWN=True, usesim=True)
     #showButterBode()
+    #showRaisedCosine()
 
 if __name__ == "__main__":
     main()
