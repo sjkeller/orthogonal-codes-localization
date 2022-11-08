@@ -48,7 +48,7 @@ Kasami(u)=\{u,u\oplus w,u\oplus(w \ll1),\dots,u\oplus(w\ll2^{N/2}-2)\}
 \section{Comparison}
 
 For the localization process by orthogonal codes certain criteria needs to be met, which were named in the first chapter. To compare the before explained code types three measures are introduced. \\ 
-The first one is the peak to side-lobe ratio (PSR) \ref{eq:psr}. This measure is defined by subtracting the mean from the peak of the auto-correlation. Then this value get divided by the standard deviation of the same auto-correlation. A higher PSR value signifies a smaller error between the auto correlation and the perfect Dirac rsulting in better detection capability. The second one is the ratio between the auto-correlation peak and the maximum of the cross-correlation (ACR) \ref{eq:acr}. Here a higher value indicates good code separation qualities. 
+The first one is the peak to side-lobe ratio (PSR) \ref{eq:psr}. This measure is defined by subtracting the mean from the peak of the auto-correlation. Then this value get divided by the standard deviation of the same auto-correlation. A higher PSR value signifies a smaller error between the auto correlation and the perfect Dirac resulting in better detection capability. The second one is the ratio between the auto-correlation peak and the maximum of the cross-correlation (ACR) \ref{eq:acr}. Here a higher value indicates good code separation qualities. 
 %The last one is the correlation coefficient showing if there are similar anchros \ref{eq:coeff}, which would be a bad indicator.
 
 \begin{equation}
@@ -88,11 +88,32 @@ ACR=\dfrac{max\{x_{ac}\}}{max\{{x_{cc}\}}}
 %\section{Results}
 
 From preferred polynomial all possible maximum length sequences, gold sequences and kasami sequences are generated. Then both measures are applied on the cross-correlation and auto-correlation functions of the random codes. The PSR and ACR measures are plotted against the used polynomials. Also the best case of PSR and ACR are plotted by their given correlation function.\\
-Maximum length sequences hold the best auto-correlation properties in comparison to its competitors. But it shows peaks in its cross-correlation, making it a rather bad option for orthogonal separation. The Kasami sequence has a way better cross-correlation but still a small peak. The clear winner are gold codes because of the good auto-correlation and very good cross-correlation properties \ref{fig:eva}. Its auto-correlations lags a bit behind its competitors but orthogonality is as much as important. 
+Maximum length sequences hold the best auto-correlation properties in comparison to its competitors. But it shows peaks in its cross-correlation, making it a rather bad option for orthogonal separation. The kasami sequence has a way better cross-correlation but still a small peak. The clear winner are gold codes because of the good auto-correlation and very good cross-correlation properties \ref{fig:eva}. Its auto-correlations lags a bit behind its competitors but orthogonality is as much as important. 
 
 \begin{figure}[h]
-	\includegraphics[width=\linewidth]{images/totaleva}
+	\centering\includegraphics[width=13.5cm]{images/mseqevaacr}
 	
-	\caption{Random Sequence Evaluation}
+	\caption{Evaluation of m-sequences by AC ratio}
+	\label{fig:eva}
+\end{figure}
+
+\begin{figure}[h]
+	\centering\includegraphics[width=13.5cm]{images/mseqevapsr}
+	
+	\caption{Evaluation of m-sequences by PS ratio}
+	\label{fig:eva}
+\end{figure}
+
+\begin{figure}[h]
+	\centering\includegraphics[width=13.5cm]{images/goldevaacr}
+	
+	\caption{Evaluation of gold sequences by AC ratio}
+	\label{fig:eva}
+\end{figure}
+
+\begin{figure}[h]
+	\centering\includegraphics[width=13.5cm]{images/goldevapsr}
+	
+	\caption{Evaluation of gold sequences by PS ratio}
 	\label{fig:eva}
 \end{figure}
