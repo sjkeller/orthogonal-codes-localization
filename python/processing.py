@@ -23,7 +23,7 @@ rolloff = 1/8       # FIR cosine filter coefficent
 fc = 62.5e3         # carrier freqency
 sysOrd = 5          # order of butterworth filter
 
-targetSNR = 100       # targeted Signal Noise Ratio for addtive GWN generator
+targetSNR = 10000000000000        # targeted Signal Noise Ratio for addtive GWN generator
 watermarkDelay = 12e-3  # delay of watermark simulation time of flight
 
 ### gold sequence generation
@@ -31,8 +31,8 @@ deg = 10
 codeLen = 2 ** deg + 1
 
 def signaltonoise(sig: np.ndarray, noise: np.ndarray):
-    snr = np.mean(sig) / np.mean(noise)
-    return snr
+    snr = np.sqrt(np.sum(sig ** 2)) / np.sqrt(np.sum(noise ** 2))
+    return 10*np.log10(snr)
 
 def _get_fftfunc(sig: np.ndarray, fs: float):
     """applies central shifted fast foruiert transformation
@@ -97,6 +97,7 @@ def gen_TB_signal(time: np.ndarray, tSigBB: np.ndarray, createMat: bool = False,
 
 def testPlotting(sig, time, num):
     fig = make_subplots(rows=2, cols=1)
+    print(len(sig))
     fig.add_trace(go.Scatter(y=sig, x=time), row=1, col=1)
     fSigT, freqT = _get_fftfunc(sig, fs)
     fig.add_trace(go.Scatter(y=freqT, x=np.abs(fSigT)), row=2, col=1)
@@ -127,35 +128,23 @@ def get_BB_signal(time: np.ndarray, tSigTB: np.ndarray, loadMat: bool = False, d
 
     sigLen = len(tSigTB)
     if loadMat:
-        _, tSigTB = wavfile.read(WAVLOAD + filepath)
+        _, tSigRAW = wavfile.read(WAVLOAD + filepath)
         
         waveLen = loadmat(WAVLOAD + CHANNEL + "/sigTB_" + str(load_index) + "/bookkeeping.mat")
         waveLen = waveLen['bk'][0][0][2][0][1]
-        #tSigTB = tSigTB[:waveLen]
-        tSigTB = tSigTB[int(fs * delay):]
-        tSigTB = tSigTB[:len(time)]
+        tSigTB = tSigRAW[int(fs * delay):int(len(time) + fs * delay)]
         #tSigTB = tSigTB[:(sigLen + int(watermarkDelay * fs))]
-        print(load_index)
         load_index += 1
 
-
-    ## test 1
-    #testPlotting(tSigTB, time, 1)
-
     ### add white noise to not delayed part
-    gwn = get_snr_noise(tSigTB[int(delay * fs):], targetSNR)
-    tSigTB[int(delay * fs):] += gwn
+    clean_sig = tSigTB
+    gwn = get_snr_noise(tSigTB, targetSNR)
+    tSigTB += gwn
 
-    print("signal to noise ratio", signaltonoise(tSigTB, gwn))
-
-    ## test 2
-    #testPlotting(tSigTB, time, 2)
+    print("signal to noise ratio", signaltonoise(clean_sig, gwn), len(clean_sig), len(gwn))
 
     ### reshift spectrum to baseband
     tSigBBr = tSigTB * np.exp(2.j*np.pi*-fc*time)
-
-    ## test 3
-    #testPlotting(np.real(tSigBBr), time, 3)
 
     return (time, tSigBBr)
 
@@ -325,15 +314,12 @@ def simulator(tDelays: list[float], numOfAnchors: int, addGWN = False, startSeed
         tSigBB = sig.resample_poly(rawCode, SpS, 1, window=filter)
 
         time = np.linspace(0, Tsym * codeLen, len(tSigBB))
-        tbtime = time
-        if usesim: 
-            time = np.linspace(0, 2 * Tsym * codeLen, 2 * len(tSigBB))
 
         ### shift spectrum to transmission band (and save it for simulation)
-        _, tSigTB = gen_TB_signal(tbtime, tSigBB, False, tDelays[i - startSeed])
+        _, tSigTB = gen_TB_signal(time, tSigBB, False, tDelays[i - startSeed])
 
         ### shift back to baseband (and load matfile if enabled)
-        _, tSigBBr = get_BB_signal(time, tSigTB, usesim)
+        _, tSigBBr = get_BB_signal(time, tSigTB, usesim, tDelays[i - startSeed])
 
         ### applying SysOrd order butterworth low pass forwards and backwards
         b, a = sig.butter(sysOrd, bw, 'lowpass', fs=fs, output='ba')
@@ -363,9 +349,8 @@ def simulator(tDelays: list[float], numOfAnchors: int, addGWN = False, startSeed
 
         index += 1
 
-    fig_title = "code degree: " + str(deg) + ", watermark channel: " + CHANNEL + ", target SNR: " + str(20*np.log10(abs(targetSNR))) + "dB"
+    fig_title = "code degree: " + str(deg) + ", watermark channel: " + CHANNEL + ", target SNR: " + str(10*np.log10(abs(targetSNR))) + "dB"
     figure.update_layout(showlegend=False, title=fig_title, yaxis_range=[-5000,20000])
-
     
     figure.show() 
 
