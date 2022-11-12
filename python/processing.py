@@ -7,7 +7,7 @@ from scipy.io import savemat, loadmat, wavfile
 from sequences import gold_seq
 
 DPIEXPORT = 400
-MATSAVE = '/Users/sk/Library/CloudStorage/OneDrive-Persönlich/Studium/TUHH/3. Semester Master/Forschungsprojekt/uw-watermark-main/Watermark/input/signals/sigTB_'
+MATSAVE = '/Users/sk/Library/CloudStorage/OneDrive-Persönlich/Studium/TUHH/3. Semester Master/Forschungsprojekt/uw-watermark-main/Watermark/input/signals/tSigTB_'
 WAVLOAD = '/Users/sk/Library/CloudStorage/OneDrive-Persönlich/Studium/TUHH/3. Semester Master/Forschungsprojekt/uw-watermark-main/Watermark/output/'
 CHANNEL = 'CASTLE3'
 
@@ -23,16 +23,28 @@ rolloff = 1/8       # FIR cosine filter coefficent
 fc = 62.5e3         # carrier freqency
 sysOrd = 5          # order of butterworth filter
 
-targetSNR = 10000000000000        # targeted Signal Noise Ratio for addtive GWN generator
+targetSNR = 0.1        # targeted Signal Noise Ratio for addtive GWN generator
 watermarkDelay = 12e-3  # delay of watermark simulation time of flight
 
 ### gold sequence generation
 deg = 10
 codeLen = 2 ** deg + 1
 
-def signaltonoise(sig: np.ndarray, noise: np.ndarray):
-    snr = np.sqrt(np.sum(sig ** 2)) / np.sqrt(np.sum(noise ** 2))
-    return 10*np.log10(snr)
+""" def testPlotting(sig, time, num):
+    fig = make_subplots(rows=2, cols=1)
+    print(len(sig))
+    fig.add_trace(go.Scatter(y=sig, x=time), row=1, col=1)
+    fSigT, freqT = _get_fftfunc(sig, fs)
+    fig.add_trace(go.Scatter(y=freqT, x=np.abs(fSigT)), row=2, col=1)
+    mytitle = "Test " + str(num)
+    fig.update_layout(title=mytitle)
+    fig.show() """
+
+def sig_noise_ratio(sig: np.ndarray, noise: np.ndarray):
+    #https://de.mathworks.com/help/signal/ref/mag2db.html
+    #https://de.mathworks.com/help/signal/ref/rssq.html
+    snr = np.std(sig) / np.std(noise)
+    return snr
 
 def _get_fftfunc(sig: np.ndarray, fs: float):
     """applies central shifted fast foruiert transformation
@@ -56,7 +68,7 @@ def _get_fftfunc(sig: np.ndarray, fs: float):
 
     return (freq, np.abs(fSig))
 
-def gen_TB_signal(time: np.ndarray, tSigBB: np.ndarray, createMat: bool = False, delay: float = 0):
+def gen_tb_signal(time: np.ndarray, tSigBB: np.ndarray, saveMat: bool = True):
     """Generates transfer band signal and saves its optionally as mat file
 
     Args
@@ -65,8 +77,8 @@ def gen_TB_signal(time: np.ndarray, tSigBB: np.ndarray, createMat: bool = False,
         time axis of signal
     tSigBB: np.ndarray
         baseband signal
-    createMat: bool
-        create matlab object file
+    saveMat:
+        saves or overwrites mat export for watermark
 
     Returns
     -------
@@ -78,34 +90,15 @@ def gen_TB_signal(time: np.ndarray, tSigBB: np.ndarray, createMat: bool = False,
     ### shift spectrum to transmission band
     tSigTB = np.real(tSigBB * np.exp(2.j*np.pi*fc*time))
 
-    if createMat:
-
-        ### add delay for simulation beforehand
-
-        dtSigTB = np.zeros(int(np.floor((delay - watermarkDelay) * fs) + len(tSigTB) + 1))
-
-        index = range(int(np.floor((delay - watermarkDelay) * fs) + 1), int(np.floor((delay - watermarkDelay) * fs) + len(tSigTB) +  1))
-
-        dtSigTB[index] = dtSigTB[index] + tSigTB
-
-        ### save signal as matlab object for watermark
-        matobj = {'fs_x': fs, 'nBits': 0, 'x': dtSigTB}
-        savemat(MATSAVE + str(file_index) + '.mat', matobj)
-        file_index += 1
+    ### save signal as matlab object for watermark
+    matobj = {'fs_x': fs, 'nBits': 0, 'x': tSigTB}
+    if saveMat:
+        savemat(MATSAVE + "d" + str(deg) + "_" + str(file_index) + '.mat', matobj)
+    file_index += 1
 
     return (time, tSigTB)
 
-def testPlotting(sig, time, num):
-    fig = make_subplots(rows=2, cols=1)
-    print(len(sig))
-    fig.add_trace(go.Scatter(y=sig, x=time), row=1, col=1)
-    fSigT, freqT = _get_fftfunc(sig, fs)
-    fig.add_trace(go.Scatter(y=freqT, x=np.abs(fSigT)), row=2, col=1)
-    mytitle = "Test " + str(num)
-    fig.update_layout(title=mytitle)
-    fig.show()
-
-def get_BB_signal(time: np.ndarray, tSigTB: np.ndarray, loadMat: bool = False, delay: float = 0):
+def gen_bb_signal(time: np.ndarray, tSigTB: np.ndarray):
     """ Shifts transfer band signal back to baseband
 
     Args
@@ -114,8 +107,6 @@ def get_BB_signal(time: np.ndarray, tSigTB: np.ndarray, loadMat: bool = False, d
         time axis of signal
     tSigTB: np.ndarray
         trasnfer band signal
-    loadMat: bool
-        load transferband from wavefile
 
     Returns
     -------
@@ -124,32 +115,34 @@ def get_BB_signal(time: np.ndarray, tSigTB: np.ndarray, loadMat: bool = False, d
 
     global load_index
 
-    filepath = CHANNEL + "/sigTB_" + str(load_index) + "/" + CHANNEL + "_001.wav"
+    filepath = CHANNEL + "/sigTB_" + "d" + str(deg) + "_" + str(load_index) + "/" + CHANNEL + "_001.wav"
 
     sigLen = len(tSigTB)
-    if loadMat:
-        _, tSigRAW = wavfile.read(WAVLOAD + filepath)
-        
-        waveLen = loadmat(WAVLOAD + CHANNEL + "/sigTB_" + str(load_index) + "/bookkeeping.mat")
-        waveLen = waveLen['bk'][0][0][2][0][1]
-        tSigTB = tSigRAW[int(fs * delay):int(len(time) + fs * delay)]
-        #tSigTB = tSigTB[:(sigLen + int(watermarkDelay * fs))]
-        load_index += 1
+    _, tSigTBr = wavfile.read(WAVLOAD + filepath)
+    
+    waveLen = loadmat(WAVLOAD + CHANNEL + "/sigTB_" + "d" + str(deg) + "_" + str(load_index) + "/bookkeeping.mat")
+    #waveLen = waveLen['bk'][0][0][2][0][1]
+    tSigTBr = tSigTBr[(watermarkDelay * fs):(sigLen + watermarkDelay * fs)]
+    load_index += 1
 
     ### add white noise to not delayed part
-    clean_sig = tSigTB
-    gwn = get_snr_noise(tSigTB, targetSNR)
-    tSigTB += gwn
+    gwn = gen_gwn_snr(tSigTBr, targetSNR)
+    tSigTBr += gwn
 
-    print("signal to noise ratio", signaltonoise(clean_sig, gwn), len(clean_sig), len(gwn))
+    #testPlotting(np.real(tSigTB), time, 2)
+    print("SNR_dB: ", 10 * np.log10(sig_noise_ratio(tSigTB - gwn, gwn)), "dB")
+    print("SNR", sig_noise_ratio(tSigTB - gwn, gwn))
 
     ### reshift spectrum to baseband
-    tSigBBr = tSigTB * np.exp(2.j*np.pi*-fc*time)
+    tSigBBr = tSigTBr * np.exp(2.j*np.pi*-fc*time)
 
     return (time, tSigBBr)
 
-def delay_sum(signals: list[np.ndarray], delays: list[float], fs: float, watmark: bool = False):
+def delay_sum(signals: list[np.ndarray], delays: list[float], fs: float):
     """Creates a delayed sum of signals
+
+    Padds every signal with its custom delay and extends their length to a size where nothing cuts off.
+    At the end all delayed and padded signals get summed up.
 
     Args
     ----
@@ -167,9 +160,6 @@ def delay_sum(signals: list[np.ndarray], delays: list[float], fs: float, watmark
     time axis of whole sum and the sum of signals
     """
 
-    #if watmark:
-    #    singalSumLen = int(np.floor(np.max(delays) * fs) + 2 * len(signals[0]))
-    #else:
     singalSumLen = int(np.floor(np.max(delays) * fs) + len(signals[0]) + 1)
 
     signalSum = np.zeros(singalSumLen)
@@ -177,18 +167,14 @@ def delay_sum(signals: list[np.ndarray], delays: list[float], fs: float, watmark
     
     for s, d in zip(signals, delays):
 
-        #if watmark:
-        #    index = range(int(np.floor((watermarkDelay - d) * fs) + 1), int((np.floor((watermarkDelay - d) * fs) + len(s) + 1)))
-        #else:
         index = range(int(np.floor(d * fs) + 1), int((np.floor(d * fs) + len(s) + 1)))
-
         signalSum[index] = signalSum[index] + s
 
     return (timeSum, signalSum)
 
 def corr_lag(x : np.ndarray, y: np.ndarray, fs: float):
     """Calculates correlation with its lags
-
+ 
     Args
     ----
     x: np.ndarray
@@ -205,8 +191,8 @@ def corr_lag(x : np.ndarray, y: np.ndarray, fs: float):
 
     sigLen = len(x)
     tCC = sig.correlate(x, y, 'same')
-    normDiv = np.sqrt(sig.correlate(x, x, 'same')[int(sigLen/2)] * sig.correlate(y, y, 'same')[int(sigLen/2)])
-    #tCC /= normDiv
+    #normDiv = np.sqrt(sig.correlate(x, x, 'same')[int(sigLen/2)] * sig.correlate(y, y, 'same')[int(sigLen/2)])
+    tCC /= np.max(tCC)
 
     tLags = np.linspace(-0.5 * sigLen/fs, 0.5 * sigLen/fs, sigLen)
     tCC = tCC[tLags > 0]
@@ -266,7 +252,7 @@ def ca_cfar(x: np.ndarray, trBinSize: int, guBinSize: int, faRate: float, sort: 
 
     return np.pad(threshList, (binSize, sigLen - binSize), 'edge')
 
-def showButterBode():
+def show_butter_bode(saveFig: bool = False):
        
     sys = sig.butter(sysOrd, bw, 'lowpass', fs=fs)
     fBode, dBMag, fPha = sig.bode(sys)
@@ -278,62 +264,60 @@ def showButterBode():
     figure.update_layout(title='Butterworth Low-Pass of Order 5 and 20kHz cutoff', showlegend=False)
     figure.show()
 
-    #figure.write_image("img/bode.pdf", scale=1, width= 2.5 * DPIEXPORT, height= 1 * DPIEXPORT)
+    if saveFig:
+        figure.write_image("img/bode.pdf", scale=1, width=2.5 * DPIEXPORT, height=1 * DPIEXPORT)
 
-def showRaisedCosine():
+def show_raised_cosine(saveFig: bool = False):
+
     filter = flt.rcosfilter(1024, rolloff, Tsym, fs)[1]
     figure = go.Figure()
     figure.add_trace(go.Scatter(y=filter[388:650], marker_color='#000'))
     figure.show()
-    #figure.write_image("img/cosfir.pdf", scale=1, width= 2.5 * DPIEXPORT, height= 1 * DPIEXPORT)
 
-def get_snr_noise(signal: np.ndarray, snr: float):
+    if saveFig:
+        figure.write_image("img/cosfir.pdf", scale=1, width=2.5 * DPIEXPORT, height=1 * DPIEXPORT)
 
-    #stdEst = np.sqrt(np.mean(signal ** 2) / snr)
-    #print(stdEst)
-    #gwn = np.random.normal(0, np.real(stdEst), len(signal))
+def gen_gwn_snr(signal: np.ndarray, snr: float):
 
-    gwn = np.random.normal(size=len(signal))*np.std(signal)/snr
+    stdEst = np.std(signal) / snr
+    gwn = np.random.normal(0, stdEst, len(signal))
 
     return gwn
 
-
-def simulator(tDelays: list[float], numOfAnchors: int, addGWN = False, startSeed: int = 42, showAll: bool = False, usesim: bool = False):
+def simulation(tDelays: list[float], numOfAnchors: int, addGWN = False, startSeed: int = 42, showAll: bool = False):
 
     figure = make_subplots(rows=numOfAnchors, cols=1)
     tSendSig = []
     
     for i in range(startSeed, startSeed + numOfAnchors):
 
-        ### generate gold code
-        rawCode = gold_seq(deg, i, 2)[0]
+        ### generates gold code
+        bCode = gold_seq(deg, i, 2)[0]
         #rawCode = np.random.uniform(-1, 1, codeLen)
 
         ### upsample and filter via FIR cosine
         filter = flt.rcosfilter(1024, rolloff, Tsym, fs)[1]
-        tSigBB = sig.resample_poly(rawCode, SpS, 1, window=filter)
+        tSigBB = sig.resample_poly(bCode, SpS, 1, window=filter)
 
+        ### create fitting time axis
         time = np.linspace(0, Tsym * codeLen, len(tSigBB))
 
-        ### shift spectrum to transmission band (and save it for simulation)
-        _, tSigTB = gen_TB_signal(time, tSigBB, False, tDelays[i - startSeed])
+        ### shift spectrum to transmission band and save it for simulation
+        time, tSigTB = gen_tb_signal(time, tSigBB)
 
-        ### shift back to baseband (and load matfile if enabled)
-        _, tSigBBr = get_BB_signal(time, tSigTB, usesim, tDelays[i - startSeed])
+        ### shift back to baseband loaded matlab wavefile from simulation
+        time, tSigBBr = gen_bb_signal(time, tSigTB)
 
         ### applying SysOrd order butterworth low pass forwards and backwards
         b, a = sig.butter(sysOrd, bw, 'lowpass', fs=fs, output='ba')
         tSigBBr = sig.filtfilt(b, a, tSigBBr)
-
-        ## test 4
-        #testPlotting(np.real(tSigBBr), time, 4)
 
         tSendSig.append(tSigBBr)
 
     tSigSum = delay_sum(np.real(tSendSig), tDelays, fs)
     winLen = fs * 5e-4
 
-    figure = make_subplots(rows=numOfAnchors, cols=1)
+    """figure = make_subplots(rows=numOfAnchors, cols=1)
     index = 1
     for si in tSendSig:
 
@@ -350,7 +334,7 @@ def simulator(tDelays: list[float], numOfAnchors: int, addGWN = False, startSeed
         index += 1
 
     fig_title = "code degree: " + str(deg) + ", watermark channel: " + CHANNEL + ", target SNR: " + str(10*np.log10(abs(targetSNR))) + "dB"
-    figure.update_layout(showlegend=False, title=fig_title, yaxis_range=[-5000,20000])
+    figure.update_layout(showlegend=False, title=fig_title)
     
     figure.show() 
 
@@ -380,9 +364,15 @@ def simulator(tDelays: list[float], numOfAnchors: int, addGWN = False, startSeed
         figure.update_layout(title='Baseband & Transmission-Band Processing')
         figure.show()
 
+        # TODOS: 
+        # SNR verdammt nochmal hinbekommen
+        # simulation so feststellen, dass singal ohne delay genommen wird
+        # kombinationen mit SNR festmachen"""
+        
+
 
 def main():
-    simulator([20e-3, 30e-3, 40e-3], 3, showAll=False, addGWN=True, usesim=True)
+    simulation([20e-3, 30e-3, 40e-3], 3, showAll=False, addGWN=True)
     #showButterBode()
     #showRaisedCosine()
 
