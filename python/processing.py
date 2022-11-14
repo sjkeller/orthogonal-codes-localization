@@ -9,7 +9,7 @@ from sequences import gold_seq
 DPIEXPORT = 400
 MATSAVE = '/Users/sk/Library/CloudStorage/OneDrive-Persönlich/Studium/TUHH/3. Semester Master/Forschungsprojekt/uw-watermark-main/Watermark/input/signals/tSigTB_'
 WAVLOAD = '/Users/sk/Library/CloudStorage/OneDrive-Persönlich/Studium/TUHH/3. Semester Master/Forschungsprojekt/uw-watermark-main/Watermark/output/'
-CHANNEL = 'PLANE2'
+CHANNEL = 'PLANE1'
 
 file_index = 0
 load_index = 0
@@ -211,9 +211,9 @@ def ca_cfar(x: np.ndarray, trBinSize: int, guBinSize: int, faRate: float, sort: 
     zero padded threshold
     """
 
-    # ┌-----------┬-----------┬-----------┬-----------┬-----------┐
-    # | train bin | guard bin | candidate | guard bin | train bin |
-    # └-----------┴-----------┴-----------┴-----------┴-----------┘
+    # ┌-------------┬-----------┬-----------┬-----------┬-------------┐
+    # | train bin X | guard bin | candidate | guard bin | train bin X |
+    # └-------------┴-----------┴-----------┴-----------┴-------------┘
 
     x = np.abs(x)
     sigLen = x.size
@@ -224,16 +224,22 @@ def ca_cfar(x: np.ndarray, trBinSize: int, guBinSize: int, faRate: float, sort: 
     threshList = []
 
     for i in range(binSize, sigLen - binSize):
+        
+        leftTrainBin = x[(i-binSize):(i-guBinSize)].copy()
+        rightTrainBin = x[(i+guBinSize):(i+binSize)].copy()
 
-        bin = x[i-binSize:i+binSize+1]
-        guard = x[i-guBinSize:i+guBinSize+1]
+        trainBin = leftTrainBin + rightTrainBin
 
-        binSum = np.sum(bin)
-        guBinSum = np.sum(guard)
+        ### Cell averaging Z = E(X) = µ_x, train bin X
+        trBinEst = np.mean(trainBin)
+        
+        if sort:
+            trBinEst = np.median(trainBin)
 
-        estThresh = (binSum - guBinSum) / (trBinSize * 2)
-        estThresh *= alpha
-        threshList.append(estThresh)
+        estZ = trBinEst * alpha
+
+
+        threshList.append(estZ)
 
     return np.pad(threshList, (binSize, sigLen - binSize), 'edge')
 
@@ -328,14 +334,13 @@ def simulation(tDelays: list[float], numOfAnchors: int, addGWN = False, startSee
 
         si = np.append(si, [0] * (len(tSigBBrSum) - len(si)))
         SigCC = corr_lag(np.real(tSigBBrSum), np.real(si), fs)
-        varSigSum = ca_cfar(SigCC[1], guLen * 10, guLen, 5e-3, sort=False)
-        lagInd = np.argmax(SigCC[1])
+        varSigSum = ca_cfar(SigCC[1], guLen * 10, guLen, 5e-2, sort=False)
+        lagInd = np.argmax(abs(SigCC[1]))
 
-        figure.add_trace(go.Scatter(x=SigCC[0], y=SigCC[1], mode='lines', marker_color='#000'), row=index, col=1)
+        figure.add_trace(go.Scatter(x=SigCC[0], y=abs(SigCC[1]), mode='lines', marker_color='#000'), row=index, col=1)
         figure.add_trace(go.Scatter(x=SigCC[0], y=varSigSum, mode='lines', marker_color='#636EFA'), row=index, col=1)
         figure.add_vline(SigCC[0][lagInd], line_color='#EF553B', line_width=3, line_dash='dash', row=index, col=1)
         
-
         index += 1
 
     fig_title = "code degree: " + str(deg) + ", watermark channel: " + CHANNEL + ", target SNR: " + str(10*np.log10(abs(targetSNR))) + "dB"
