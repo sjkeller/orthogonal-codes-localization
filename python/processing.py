@@ -195,7 +195,7 @@ def corr_lag(x : np.ndarray, y: np.ndarray, fs: float):
     sigLen = len(x)
     tCC = sig.correlate(x, y, 'same')
     #normDiv = np.sqrt(sig.correlate(x, x, 'same')[int(sigLen/2)] * sig.correlate(y, y, 'same')[int(sigLen/2)])
-    tCC /= np.max(tCC)
+    tCC /= np.max(np.abs(tCC))
 
     #tLags = np.linspace(-sigLen/fs, sigLen/fs, sigLen * 2 - 1)
     tLags = np.linspace(-0.5*sigLen/fs, 0.5*sigLen/fs, sigLen)
@@ -369,7 +369,7 @@ def simulation(tDelays: list[float], numOfAnchors: int, addGWN = False, startSee
 
         si = np.append(si, [0] * (len(tSigBBrSum) - len(si)))
         tauCC, tauSigCC = corr_lag(tSigBBrSum, si, fs)
-        varSigSum = ca_cfar(tauSigCC, guLen * 10, guLen, 1e-1, sort=False)
+        varSigSum = ca_cfar(tauSigCC, guLen * 6, guLen, 1.2e-1, sort=False)
 
         SigCCpks = np.abs(tauSigCC.copy())
         #SigCCpks[SigCCpks < varSigSum] = 0
@@ -385,8 +385,14 @@ def simulation(tDelays: list[float], numOfAnchors: int, addGWN = False, startSee
         figure.add_trace(go.Scatter(x=tauCC, y=np.abs(tauSigCC), mode='lines', marker_color='#000'), row=index, col=1)
         figure.add_trace(go.Scatter(x=tauCC, y=varSigSum, mode='lines', marker_color='#636EFA'), row=index, col=1)
 
+        lastVal = 0
         for i in sigCCind[0]:
-            figure.add_vline(tauCC[i], line_color='#00CC96', line_width=3, line_dash='dash', row=index, col=1)
+            if i != lastVal + 1:
+                figure.add_vline(tauCC[i], line_color='#00CC96', line_width=3, line_dash='dash', row=index, col=1)
+                lstSigCCpks.append(tauCC[i])
+            lastVal = i
+
+            #figure.add_vrect()
 
         figure.add_vline(tauCC[lagInd], line_color='#EF553B', line_width=3, row=index, col=1)
 
@@ -433,7 +439,7 @@ def simulation(tDelays: list[float], numOfAnchors: int, addGWN = False, startSee
         figure.update_layout(title='Recieved Sum of Signals in Baseband')
         figure.show()
 
-    return estDelays
+    return estDelays, lstSigCCpks
 
 def main():
     snr = 10
