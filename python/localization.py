@@ -1,5 +1,4 @@
 from processing import simulation
-from scipy.optimize import minimize
 import plotly.graph_objects as go
 import numpy as np
 
@@ -12,8 +11,8 @@ def localLateration(anchorPos: list[tuple], delays: list[float]):
     x1, y1 = anchorPos[1]
     x2, y2 = anchorPos[2]
 
-    tau01 = delays[0] 
-    tau02 = delays[1] 
+    tau01 = delays[1] - delays[0]
+    tau02 = delays[2] - delays[0]
 
     d01 = SOFSOUND_WATER * tau01
     d02 = SOFSOUND_WATER * tau02
@@ -23,38 +22,59 @@ def localLateration(anchorPos: list[tuple], delays: list[float]):
 
     ### positions by last sqare regression using direct inverse method (A^T * A)^-1 * A^T * b
     # source https://math.stackexchange.com/questions/1722021/trilateration-using-tdoa
-    pos = np.dot(np.dot(np.linalg.inv(np.dot(matA.T, matA)), matA.T), vecB)[:2]
+    #pos = np.dot(np.dot(np.linalg.inv(np.dot(matA.T, matA)), matA.T), vecB)[:2]
+    pos = np.linalg.lstsq(matA, vecB, rcond=None)[0][:2]
 
     return pos
 
 def distToDelay(achorPos: list[tuple], startPos: tuple[float]):
 
-    d0 = np.linalg.norm(np.asarray(achorPos[0]) - np.asarray(startPos))
-    d1 = np.linalg.norm(np.asarray(achorPos[1]) - np.asarray(startPos))
-    d2 = np.linalg.norm(np.asarray(achorPos[2]) - np.asarray(startPos))
+    # tau_i = 1/c * (|S - S_0| - |S - S_i|)
+
+    d0 = np.linalg.norm(np.asarray(startPos) - np.asarray(achorPos[0]))
+    d01 = np.linalg.norm(np.asarray(achorPos[0]) - np.asarray(achorPos[1]))
+    d02 = np.linalg.norm(np.asarray(achorPos[0]) - np.asarray(achorPos[2]))
+
+    # S_0 |-----^------------------------|
+    # S_1 |-------------^----------------|
+    # S_2 |-----------------------^------|
+    # tau       0       1         2
+    # tau_0i = tau_i - tau_0  
+    tau01 = (d0 - d01) / SOFSOUND_WATER
+    tau02 = (d0 - d02) / SOFSOUND_WATER
 
     tau0 = d0 / SOFSOUND_WATER
-    tau1 = d1 / SOFSOUND_WATER
-    tau2 = d2 / SOFSOUND_WATER
+    tau1 = tau0 + tau01
+    tau2 = tau0 + tau02
 
     return tau0, tau1, tau2
 
+
+def circlePath(scale: float, offset: float, res: int = 10):
+    phi = np.linspace(0, 2*np.pi, res)
+    x = scale * np.sin(phi) + offset
+    y = scale * np.cos(phi) + offset
+
+    return x,y
 
 def main():
     global file_index, load_index
     #lstSNRdB = [-15, -10, -5, 0, 5]
     lstSNRdB = [5]
     #chns = ['PLANE1', 'PLANE2', 'CASTLE1', 'CASTLE2', 'CASTLE3']
-    chns = ['PLANE1']
     degs = [8, 9, 10]
     snr = 0
 
-    realPos = (30,33)
-    anchors = [(0,0), (0,50), (50,25)]
-    realDelays = distToDelay(anchors, realPos)
-    print("Real delays", realDelays)
+    anc = [(0,0), (0,50), (50,25)]
+    
+    #print("Real delays", realDelays)
 
-    for ch in chns:
+    lstRealDelays = []
+    lstEstPos = []
+
+    xPos, yPos = circlePath(10, 20, 30)
+
+    """for ch in chns:
         snr = 10 ** (snr / 10)
         maxDelays, cfarDelays = simulation(realDelays, 3, showAll=False, addGWN=False, targetSNR=snr, useSim=True, channel=ch, polyDeg=10)
         print("Detected delays by max:", maxDelays)
@@ -62,12 +82,8 @@ def main():
         file_index = 0
         load_index = 0
 
-        anc = [(0,0), (0,50), (50,25)]
-
-        relativeDelays = [maxDelays[1] - maxDelays[0], maxDelays[2] - maxDelays[0]]
-
-        estPos = localLateration(anc, relativeDelays)
-        print("new pos", estPos)
+        estPos = localLateration(anc, realDelays)
+        print("new pos", estPos)"""
 
     #showButterBode()
     #showRaisedCosine()
@@ -77,11 +93,35 @@ def main():
     xAnchors = list(zip(*anc))[0]
     yAnchors = list(zip(*anc))[1]
 
-    fig.add_trace(go.Scatter(x=xAnchors, y=yAnchors, mode='markers', marker=dict(size=50), name="Anchors", marker_color='#EF553B'))
-    fig.add_trace(go.Scatter(x=[realPos[0]], y=[realPos[1]], mode='markers', marker=dict(size=50), name="real Position", marker_color='#636EFA'))
-    fig.add_trace(go.Scatter(x=[estPos[0]], y=[estPos[1]], mode='markers', marker=dict(size=50), name="est. Position", marker_color='#AB63FA'))
+
+    fig.add_trace(go.Scatter(x=xAnchors, y=yAnchors, mode='markers', marker=dict(size=30), name="Anchors", marker_color='#EF553B', text=["S0", "S1", "S2"], textposition="bottom center"))
+    #fig.add_trace(go.Scatter(x=[realPos[0]], y=[realPos[1]], mode='markers', marker=dict(size=50), name="real Position", marker_color='#636EFA'))
+    #fig.add_trace(go.Scatter(x=[estPos[0]], y=[estPos[1]], mode='markers', marker=dict(size=50), name="est. Position", marker_color='#AB63FA'))
+
+    for cx, cy in zip(xPos, yPos):
+
+        realDelays = distToDelay(anc, (cx, cy))
+        lstRealDelays.append((cx, cy))
+
+        maxDelays, cfarDelays = simulation(realDelays, 3, showAll=False, addGWN=False, targetSNR=snr, useSim=True, channel='PLANE1', polyDeg=10)
+
+        #print("real delays", realDelays)
+        #print("max delays", maxDelays)
+
+        estPos = localLateration(anc, maxDelays)
+        print("est. Pos", estPos)
+        lstEstPos.append((estPos[0], estPos[1]))
+
+    fig.add_trace(go.Scatter(x=xPos, y=yPos, name="real Position", marker_color='#636EFA'))
+
+    xEstPos = list(zip(*lstEstPos))[0]
+    yEstPos = list(zip(*lstEstPos))[1]
+
+    fig.add_trace(go.Scatter(x=xEstPos, y=yEstPos, name="est. Position", marker_color='#AB63FA'))
 
     fig.show()
+
+
 
 if __name__ == "__main__":
     main()

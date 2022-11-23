@@ -402,7 +402,8 @@ def simulation(tDelays: list[float], numOfAnchors: int, addGWN = False, startSee
 
     fig_title = "code degree: " + str(polyDeg) + ", watermark channel: " + channel + ", target SNR: " + str(10*np.log10(abs(targetSNR))) + "dB"
     figure.update_layout(showlegend=False, title=fig_title)
-    figure.show() 
+    if showAll:
+        figure.show() 
 
     """figure = make_subplots(rows=numOfAnchors, cols=1)
     index = 1
