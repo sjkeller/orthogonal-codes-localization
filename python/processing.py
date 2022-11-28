@@ -6,6 +6,8 @@ from scipy import signal as sig
 from scipy.io import savemat, loadmat, wavfile
 from sequences import gold_seq
 
+import matplotlib.pyplot as plt
+
 DPIEXPORT = 400
 MATSAVE = '/Users/sk/Library/CloudStorage/OneDrive-Persönlich/Studium/TUHH/3. Semester Master/Forschungsprojekt/uw-watermark-main/Watermark/input/signals/tSigTB_'
 WAVLOAD = '/Users/sk/Library/CloudStorage/OneDrive-Persönlich/Studium/TUHH/3. Semester Master/Forschungsprojekt/uw-watermark-main/Watermark/output/'
@@ -49,9 +51,6 @@ def testPlotting(sig, time, num):
     fig.update_layout(title=mytitle)
     fig.show()
 
-def sig_noise_ratio(sig: np.ndarray, noise: np.ndarray):
-    snr = np.std(sig) / np.std(noise)
-    return snr
 
 def _get_fftfunc(sig: np.ndarray, fs: float):
     """applies central shifted fast foruiert transformation
@@ -261,24 +260,29 @@ def ca_cfar(x: np.ndarray, trBinSize: int, guBinSize: int, faRate: float, sort: 
 
 def show_butter_bode(saveFig: bool = False):
        
-    sys = sig.butter(sysOrd, bw, 'lowpass', fs=fs)
+    sys = sig.butter(1, bw / 2, 'lowpass', fs=fs)
     fBode, dBMag, fPha = sig.bode(sys)
 
-    figure = make_subplots(rows=1, cols=2, x_title='Frequency [deg]', subplot_titles=('Magnitude [dB]', 'Phase [deg]'))
-    figure.add_trace(go.Scatter(x=fBode, y=dBMag, fill='tozerox', marker_color='#EF553B'), row=1, col=1)
-    figure.add_trace(go.Scatter(x=fBode, y=fPha, fill='tozerox'), row=1, col=2)
-    figure.update_xaxes(type='log')
+    figure = make_subplots(rows=1, cols=2)
+    figure.add_trace(go.Scatter(x=fBode, y=dBMag, marker_color='#1F77B4', line=dict(width=3)), row=1, col=1)
+    figure.add_trace(go.Scatter(x=fBode, y=fPha, marker_color='#1F77B4', line=dict(width=3)), row=1, col=2)
+    figure.update_xaxes(type='log', title_text='Frequency [rad/s]')
+    figure.update_yaxes(title_text='Magnitude [dB]', row=1, col=1)
+    figure.update_yaxes(title_text='Phase [deg]', row=1, col=2)
     figure.update_layout(title='Butterworth Low-Pass of Order 5 and 20kHz cutoff', showlegend=False)
     figure.show()
 
+
     if saveFig:
-        figure.write_image("img/bode.pdf", scale=1, width=2.5 * DPIEXPORT, height=1 * DPIEXPORT)
+        figure.write_image("img/bode.pdf", scale=1.5, width=2.5 * DPIEXPORT, height=1 * DPIEXPORT)
 
 def show_raised_cosine(saveFig: bool = False):
 
-    filter = flt.rcosfilter(1024, rolloff, Tsym, fs)[1]
+    t, filter = flt.rcosfilter(256, rolloff, Tsym, fs)
     figure = go.Figure()
-    figure.add_trace(go.Scatter(y=filter[388:650], marker_color='#000'))
+    figure.add_trace(go.Scatter(x=t/Tsym, y=filter, marker_color='#000', line=dict(width=3)))
+    figure.update_xaxes(title_text='Frequency [Tsym]')
+    figure.update_yaxes(title_text='Amplitude')
     figure.show()
 
     if saveFig:
@@ -321,7 +325,7 @@ def simulation(tDelays: list[float], numOfAnchors: int, addGWN = False, startSee
         lstAnchors.append(tSigBB)
 
         ### shift spectrum to transmission band and save it for simulation
-        time, tSigTB = gen_tb_signal(time, tSigBB, False, polyDeg)
+        time, tSigTB = gen_tb_signal(time, tSigBB, True, polyDeg)
         
         ### use simulation signal or just passthrough the generated transfer-band signal
         if useSim:
@@ -343,14 +347,24 @@ def simulation(tDelays: list[float], numOfAnchors: int, addGWN = False, startSee
     if addGWN:
         stdEst = np.mean(np.std(lstSignals, axis=-1))
         gwn = gen_gwn_snr(tSigTBrSum, stdEst, targetSNR)
+
         tSigTBrSum += gwn
 
-        print("SNR_dB:", 10 * np.log10(sig_noise_ratio(tSigTBrSum - gwn, gwn)), "dB")
-        print("SNR:", sig_noise_ratio(tSigTBrSum - gwn, gwn))
+        print("SNR_dB:", 10 * np.log10(stdEst/np.std(gwn)), "dB")
+        print("SNR:", stdEst/np.std(gwn))
 
     ### applying SysOrd order butterworth bandpass forwards and backwards
     b, a = sig.butter(sysOrd, [fc - bw/2, fc + bw/2], 'bandpass', fs=fs, output='ba')
+
+    #figure = go.Figure()
+    #figure.add_trace(go.Scatter(y=np.real(tSigTBrSum)))
+    #figure.show()
+
     tSigTBrSum = sig.filtfilt(b, a, tSigTBrSum)
+
+    #figure = go.Figure()
+    #figure.add_trace(go.Scatter(y=np.real(tSigTBrSum)))
+    #figure.show()
 
     ### shift sum of signals to baseband
     tSigBBrSum = tSigTBrSum * np.exp(-2.j*np.pi*fc*timeSum)
@@ -443,11 +457,12 @@ def simulation(tDelays: list[float], numOfAnchors: int, addGWN = False, startSee
     return estDelays, lstSigCCpks
 
 def main():
-    snr = 10
+    #for snr in [-20, -15, -10, -5, 0, 5, 10, 15, 20]:
+    snr = 0
     snr = 10 ** (snr / 10)
-    simulation([10e-3, 20e-3, 30e-3], 3, showAll=True, addGWN=True, targetSNR=snr, useSim=True)
-    show_butter_bode()
-    show_raised_cosine()
+    simulation([10e-3, 20e-3, 30e-3, 40e-3], 4, showAll=False, addGWN=True, targetSNR=snr, useSim=False, polyDeg=8)
+    #show_butter_bode(saveFig=True)
+    #show_raised_cosine(saveFig=True)
 
 if __name__ == "__main__":
     main()

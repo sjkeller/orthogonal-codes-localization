@@ -2,8 +2,13 @@ from processing import simulation
 import plotly.graph_objects as go
 import numpy as np
 
-# source http://hyperphysics.phy-astr.gsu.edu/hbase/Tables/Soundv.html
-SOFSOUND_WATER = 1493
+# source pending
+SOFSOUND_WATER = 1500
+
+
+def leastSquareEst(anchorPos: list[tuple], delays: list[float]):
+    
+    return 0
 
 def localLateration(anchorPos: list[tuple], delays: list[float]):
 
@@ -72,7 +77,7 @@ def main():
     lstRealDelays = []
     lstEstPos = []
 
-    xPos, yPos = circlePath(10, 20, 30)
+    xPos, yPos = circlePath(10, 20, 10)
 
     """for ch in chns:
         snr = 10 ** (snr / 10)
@@ -102,8 +107,8 @@ def main():
 
         realDelays = distToDelay(anc, (cx, cy))
         lstRealDelays.append((cx, cy))
-
-        maxDelays, cfarDelays = simulation(realDelays, 3, showAll=False, addGWN=False, targetSNR=snr, useSim=True, channel='PLANE1', polyDeg=10)
+        snr = 10 ** (snr / 10)
+        maxDelays, cfarDelays = simulation(realDelays, 3, showAll=False, addGWN=False, targetSNR=snr, useSim=True, channel='CASTLE2', polyDeg=10)
 
         #print("real delays", realDelays)
         #print("max delays", maxDelays)
@@ -120,6 +125,8 @@ def main():
     fig.add_trace(go.Scatter(x=xEstPos, y=yEstPos, name="est. Position", marker_color='#AB63FA'))
 
     fig.show()
+
+    # add filtfilt order dobuling to PDF
 
 
 
