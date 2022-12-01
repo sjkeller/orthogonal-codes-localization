@@ -325,7 +325,7 @@ def simulation(tDelays: list[float], numOfAnchors: int, addGWN = False, startSee
         lstAnchors.append(tSigBB)
 
         ### shift spectrum to transmission band and save it for simulation
-        time, tSigTB = gen_tb_signal(time, tSigBB, True, polyDeg)
+        time, tSigTB = gen_tb_signal(time, tSigBB, False, polyDeg)
         
         ### use simulation signal or just passthrough the generated transfer-band signal
         if useSim:
@@ -454,7 +454,9 @@ def simulation(tDelays: list[float], numOfAnchors: int, addGWN = False, startSee
         figure.update_layout(title='Recieved Sum of Signals in Baseband')
         figure.show()
 
-    return estDelays, lstSigCCpks
+    relDelays = (estDelays[0] - estDelays[1], estDelays[0] - estDelays[2], estDelays[0] - estDelays[3])
+
+    return relDelays, lstSigCCpks
 
 def main():
     #for snr in [-20, -15, -10, -5, 0, 5, 10, 15, 20]:
