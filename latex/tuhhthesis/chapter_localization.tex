@@ -1,0 +1,88 @@
+\chapter{Localization}
+
+\section{Peak detection}
+
+The received signal, consisting of summed delayed signals, cross-correlated by every anchor. If the signal is not reflected the peak in cross-correlation would be obvious. But because by the introduction of noise and water reflections a higher rate of similar peaks appear. To suppress these effects a CA-FAR Algorithm \cite{rohling11} is applied to only detect the first reflected peak resulting in lower false alarms of peaks. \\
+CA-FAR works by using multiple values intervals. The most outer one could be described as a train bin and is used to get an estimation of the signals noise. Especially CA-FAR uses averaging to estimate the noise by measured cells. The bordering bin, defined as the guard cells, is used to reduce self-interference of the peaks. Thus, increasing window sizes $W$ results in better noise estimating but overall detectability is still limited by the sample rate  \cite{rohling11}\cite{radarbasics}. By knowledge of measured peak widths a optimal guard interval can be figured.\\
+The calculated threshold is than scaled by a formula depending on the false alarm rate. The higher the false alarm rate, the weaker high amplitude peaks gets included by the estimated threshold \ref{eq:cff}.\\
+%Because Cell Averaging shows not satisfactory results in sensitive multi targets examples, the noise estimation could be enhanced by a sorting average applied to the %train interval. That principle is defined as CO-FAR \cite{rohling11}. 
+%\begin{center}
+%	\begin{tabular}{|c|c|}
+%			\hline
+%			candidate sample & $i$\\
+%			\hline
+%			guard interval (half) & $\mathcal{G}$ \\
+%			\hline
+%			train interval (half) & $\mathcal{T}$ \\
+%			\hline
+%			false alarm rate & $\eta$\\
+%			\hline
+%		\end{tabular}
+%	\linebreak
+%\end{center}
+%
+%\begin{equation}
+%	Threshold(i)_x=
+%	\cfrac{\alpha}{2\mathcal{T}}
+%	\left[ \sum_{j=i-\left( \mathcal{G}+\mathcal{T}\right) }^{i+\left( \mathcal{G}+\mathcal{T}\right)}x(j) - \sum_{j=i-\mathcal{G}}^{i+\mathcal{G}}x(j) \rigbest NAht] 
+%	\label{eq:cft}
+%\end{equation}
+%\begin{equation}
+%	\text{scale factor}~~~
+%	\alpha=2\mathcal{T}\left( \eta^{-1/{2\mathcal{T}}}-1\right) 
+%	\label{eq:cff}
+%\end{equation}
+\begin{figure}[h]
+	\includegraphics[width=\linewidth]{images/peakdet}
+	
+	\caption{CFAR threshold peak detection procedure}
+	\label{fig:simsig}
+\end{figure}
+
+\begin{equation}
+	T=S\cdot Z,~~~Z_{CA}=\sum_{i=1}^{W}\dfrac{1}{W}x_{train}
+	\label{eq:cff}
+\end{equation}
+
+
+\section{Position calculation}
+
+The initial condition for the localization are four anchors $S_i$ with thir coordinates $\{x_i,y_i,z_i\}$ and the target $S$ which is to be located. By multiplying relative delays by the speed of sound $c$ which is approximately set to $1500\,\frac{m}{s}$, the distance $d_{ij}$ between the reference anchor $S_0$ and $S_i$ is calculated.\\
+\begin{equation}
+	d_{ij}=c\cdot\tau_{ij}=c\cdot (t_i-t_j),~~~\text{absolute delays } t_k,~k\in \{0,1,2,3\}
+\end{equation}
+By these values a Matrix $A$ and vector $\vec{b}$ is created. Thus, a System $A\cdot \vec{x}=\vec{b}$ is established. This linear system can be solved by using the inverse method if Matrix $A$ has full rank. Otherwise least squared can be used but yields undesirable results. In three dimensional Space five anchors are needed for full rank. The solution $\vec{x}$ are the coordinates $\{x,y,z\}$ of the target $S$ \cite{yang11}.
+
+\begin{equation}
+	A=\left[
+	\begin{array}{cccc}
+		x_0-x_1 & y_0-y_1 & z_0-z_1 & d_{01}\\
+		x_0-x_2 & y_0-y_2 & z_0-z_2 & d_{02}\\
+		x_0-x_3 & y_0-y_3 & z_0-z_3 & d_{03}\\
+		x_0-x_4 & y_0-y_4 & z_0-z_4 & d_{04}\\
+	\end{array}
+	\right]
+\end{equation}
+\begin{equation}
+	\vec{b}=\cfrac{1}{2}\left[
+	\begin{array}{c}
+		x_0^2-x_1^2+y_0^2-y_1^2+z_0^2-z_1^2+d_{01}^2\\
+		x_0^2-x_2^2+y_0^2-y_2^2+z_0^2-z_2^2+d_{02}^2\\
+		x_0^2-x_3^2+y_0^2-y_3^2+z_0^2-z_3^2+d_{03}^2\\
+		x_0^2-x_4^2+y_0^2-y_4^2+z_0^2-z_4^2+d_{04}^2\\
+	\end{array}
+	\right]
+	,~~~
+	\vec{x}=\left[
+	\begin{array}{c}
+		x\\
+		y\\
+		z\\
+		||S-S_0||_2\\
+	\end{array}
+	\right]
+\end{equation}
+
+\begin{equation}
+	\vec{x}=(A^T A)^{-1} A^T\vec{b}
+\end{equation}
