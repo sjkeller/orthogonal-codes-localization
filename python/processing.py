@@ -192,12 +192,12 @@ def corr_lag(x : np.ndarray, y: np.ndarray, fs: float):
     """
 
     sigLen = len(x)
-    tCC = sig.correlate(x, y, 'same')
+    tCC = sig.correlate(x, y, 'full')
     #normDiv = np.sqrt(sig.correlate(x, x, 'same')[int(sigLen/2)] * sig.correlate(y, y, 'same')[int(sigLen/2)])
     tCC /= np.max(np.abs(tCC))
 
-    #tLags = np.linspace(-sigLen/fs, sigLen/fs, sigLen * 2 - 1)
-    tLags = np.linspace(-0.5*sigLen/fs, 0.5*sigLen/fs, sigLen)
+    tLags = np.linspace(-sigLen/fs, sigLen/fs, sigLen * 2 - 1)
+    #tLags = np.linspace(-0.5*sigLen/fs, 0.5*sigLen/fs, sigLen)
     tCC = tCC[tLags > 0]
     tLags = tLags[tLags > 0]
 
@@ -394,7 +394,7 @@ def simulation(tDelays: list[float], numOfAnchors: int, addGWN = False, startSee
 
         lagInd = np.argmax(abs(tauSigCC))
 
-        print("indexes: ", lagInd)
+        #print("indexes: ", lagInd)
         estDelays.append(tauCC[lagInd])
         figure.add_trace(go.Scatter(x=tauCC, y=np.abs(tauSigCC), mode='lines', marker_color='#000'), row=index, col=1)
         figure.add_trace(go.Scatter(x=tauCC, y=varSigSum, mode='lines', marker_color='#636EFA'), row=index, col=1)
@@ -419,16 +419,6 @@ def simulation(tDelays: list[float], numOfAnchors: int, addGWN = False, startSee
     if showAll:
         figure.show() 
 
-    """figure = make_subplots(rows=numOfAnchors, cols=1)
-    index = 1
-    for si in lstSigCCpks:
-        figure.add_trace(go.Scatter(x=tauCC, y=si, mode='lines', marker_color='#000'), row=index, col=1)
-        index += 1
-
-    fig_title = "code degree: " + str(deg) + ", watermark channel: " + channel + ", target SNR: " + str(10*np.log10(abs(targetSNR))) + "dB"
-    figure.update_layout(showlegend=False, title=fig_title)
-    figure.show() """
-    
 
     if showAll:
 
@@ -436,7 +426,7 @@ def simulation(tDelays: list[float], numOfAnchors: int, addGWN = False, startSee
         fTB, fSigTB = _get_fftfunc(tSigTB, fs)
         fBBr, fSigBBrSum = _get_fftfunc(tSigBBrSum, fs)
 
-        print("total signal length is", round(timeSum[-1], 5), "s")
+        #print("total signal length is", round(timeSum[-1], 5), "s")
 
         ### code to transfer band process plots and backwards process plots
         figure = make_subplots(rows=3, cols=1)
@@ -454,7 +444,7 @@ def simulation(tDelays: list[float], numOfAnchors: int, addGWN = False, startSee
         figure.update_layout(title='Recieved Sum of Signals in Baseband')
         figure.show()
 
-    relDelays = (estDelays[0] - estDelays[1], estDelays[0] - estDelays[2], estDelays[0] - estDelays[3])
+    relDelays = (estDelays[0] - estDelays[1], estDelays[0] - estDelays[2], estDelays[0] - estDelays[3], estDelays[0] - estDelays[4])
 
     return relDelays, lstSigCCpks
 
@@ -462,73 +452,10 @@ def main():
     #for snr in [-20, -15, -10, -5, 0, 5, 10, 15, 20]:
     snr = 0
     snr = 10 ** (snr / 10)
-    simulation([10e-3, 20e-3, 30e-3, 40e-3], 4, showAll=False, addGWN=True, targetSNR=snr, useSim=False, polyDeg=8)
+    simulation([5e-3, 10e-3, 15e-3, 20e-3, 25e-3], 5, showAll=False, addGWN=True, targetSNR=snr, useSim=False, polyDeg=10)
     #show_butter_bode(saveFig=True)
     #show_raised_cosine(saveFig=True)
 
 if __name__ == "__main__":
     main()
     
-# SNR tp error(localtion measured - real location) and different degs/CHANNELS
-# use SNR for unsummed signals
-# generate delay list for circular path of 3 anchors (time difference of arrival)
-# pdf Fr 12:00
-
-
-"""def main():
-
-    startSeed = 32
-
-    numOfAnchors = 5
-
-    figure = make_subplots(rows=numOfAnchors, cols=1)
-    tSendSig = []
-
-    tDelays = [1e-3, 2e-3, 3e-3, 4e-3, 5e-3]
-
-    for i in range(startSeed, startSeed + numOfAnchors):
-        rawCode = gold_seq(deg, i, 2)[0]
-        signal = gen_TB_signal(rawCode)
-        signal = get_BB_signal(signal[0], signal[1])
-        tSendSig.append(signal[1])
-        figure.add_trace(go.Scatter(x=signal[0], y=signal[1], mode='lines', marker_color='#000'), row=i-(startSeed-1), col=1)
-
-    figure.show() 
-
-    numOfCorr = comb(numOfAnchors, 2)
-
-    figure = make_subplots(rows=numOfCorr, cols=2)
-
-    index = 1
-    for pair in combinations(tSendSig, 2):
-        SigCC = sig.correlate(pair[0], pair[1], 'same')
-        tauCC = sig.correlation_lags(len(pair[0]), len(pair[1]), 'same')
-        figure.add_trace(go.Scatter(x=tauCC, y=SigCC, mode='lines', marker_color='#000'), row=index, col=1)
-        index += 1
-
-    index = 1
-    for si in tSendSig:
-        SigAC = sig.correlate(si, si, 'same')
-        tauAC = sig.correlation_lags(len(si), len(si), 'same')
-        figure.add_trace(go.Scatter(x=tauAC, y=SigAC, mode='lines', marker_color='#000'), row=index, col=2)
-        index += 1
-    figure.update_layout(showlegend=False)
-    figure.show() 
-
-    figure = make_subplots(rows=1, cols=1)
-    tSigSum = delay_sum(tSendSig, tDelays, fs)
-    figure.add_trace(go.Scatter(x=tSigSum[0], y=tSigSum[1], mode='lines', marker_color='#000'), row=1, col=1)
-    figure.update_layout(showlegend=False)
-    figure.show() 
-
-    figure = make_subplots(rows=numOfAnchors, cols=1)
-    index = 1
-    for si in tSendSig:
-        si = np.append(si, [0] * (len(tSigSum[1]) - len(si)))
-        SigCC = corr_lag(tSigSum[1], si, fs)
-        figure.add_trace(go.Scatter(x=SigCC[0], y=SigCC[1], mode='lines', marker_color='#000'), row=index, col=1)
-        lagInd = np.argmax(SigCC[1])
-        figure.add_vline(SigCC[0][lagInd], line_color='#EF553B', line_width=3, line_dash='dash', row=index, col=1)
-        index += 1
-    figure.update_layout(showlegend=False)
-    figure.show() """
