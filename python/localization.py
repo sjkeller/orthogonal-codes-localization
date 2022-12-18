@@ -1,8 +1,9 @@
 from processing import simulation
 import plotly.graph_objects as go
 import numpy as np
+from scipy import optimize, spatial
 from decimal import Decimal
-
+from scipy.spatial.transform import Rotation as R
 # source pending
 SOFSOUND_WATER = 1500
 
@@ -67,29 +68,108 @@ def localLateration(anchorPos: list[tuple], delays: list[float]):
     d03 = SOFSOUND_WATER * tau03
     d04 = SOFSOUND_WATER * tau04
 
-    matA = np.array(
+    """matA = np.array(
         [[x0 - x1, y0 - y1, z0 - z1, d01], 
          [x0 - x2, y0 - y2, z0 - z2, d02], 
          [x0 - x3, y0 - y3, z0 - z3, d03], 
          [x0 - x4, y0 - y4, z0 - z4, d04]]
-    )
+    
     vecB = np.array(
         [x0 ** 2 - x1 ** 2 + y0 ** 2 - y1 ** 2 + z0 ** 2 - z1 ** 2 + d01 ** 2, 
          x0 ** 2 - x2 ** 2 + y0 ** 2 - y2 ** 2 + z0 ** 2 - z2 ** 2 + d02 ** 2, 
          x0 ** 2 - x3 ** 2 + y0 ** 2 - y3 ** 2 + z0 ** 2 - z3 ** 2 + d03 ** 2,
          x0 ** 2 - x4 ** 2 + y0 ** 2 - y4 ** 2 + z0 ** 2 - z4 ** 2 + d04 ** 2]
+    ) / 2"""
+
+    matA = np.array(
+        [[x0 - x1, y0 - y1, z0 - z1, d01], 
+         [x0 - x2, y0 - y2, z0 - z2, d02], 
+         [x0 - x3, y0 - y3, z0 - z3, d03]]
+    )
+    vecB = np.array(
+        [x0 ** 2 - x1 ** 2 + y0 ** 2 - y1 ** 2 + z0 ** 2 - z1 ** 2 + d01 ** 2, 
+         x0 ** 2 - x2 ** 2 + y0 ** 2 - y2 ** 2 + z0 ** 2 - z2 ** 2 + d02 ** 2, 
+         x0 ** 2 - x3 ** 2 + y0 ** 2 - y3 ** 2 + z0 ** 2 - z3 ** 2 + d03 ** 2]
     ) / 2
 
     ### positions by last sqare regression using direct inverse method (A^T * A)^-1 * A^T * b
     # source https://math.stackexchange.com/questions/1722021/trilateration-using-tdoa
     #pos = np.dot(np.dot(np.linalg.inv(np.dot(matA.T, matA)), matA.T), vecB)[:3]
-    pos = np.linalg.solve(matA, vecB)
-    #pos, resid, _, _ = np.linalg.lstsq(matA, vecB, rcond=None)
-    #pos = np.linalg.tensorsolve(matA, vecB)
+    #pos = np.linalg.solve(matA, vecB)
+    #pos, resid, _, sing = np.linalg.lstsq(matA, vecB, rcond=-1)
+    #pos, resid, _, sing = linalg.lstsq(matA, vecB)
 
-    #print("residuals", resid)
+    result = optimize.lsq_linear(matA, vecB)
 
-    return pos
+    #print("residuals", resid, "singular vals", sing)
+
+    # least suqare/quadratic solution for using only 4 anchors
+    # *-----|-----* 
+
+    return result.x
+
+def quadraticApprox(anchorPos: list[tuple], toas: list[float]):
+
+    d01 = SOFSOUND_WATER * np.abs(toas[0] - toas[1])
+    d02 = SOFSOUND_WATER * np.abs(toas[0] - toas[2])
+    d21 = SOFSOUND_WATER * np.abs(toas[2] - toas[1])
+    d23 = SOFSOUND_WATER * np.abs(toas[2] - toas[3])
+
+    x0, y0, z0 = anchorPos[0]
+    x1, y1, z1 = anchorPos[1]
+    x2, y2, z2 = anchorPos[2]
+    x3, y3, z3 = anchorPos[3]
+
+    x10 = x1 - x0
+    x20 = x2 - x0
+    x12 = x1 - x2
+    x32 = x3 - x2
+
+    y10 = y1 - y0
+    y20 = y2 - y0
+    y12 = y1 - y2
+    y32 = y3 - y2
+
+    z10 = z1 - z0
+    z20 = z2 - z0
+    z12 = z1 - z2
+    z32 = z3 - z2
+
+    varA = (d02 * x10 - d01 * x20) / (d01 * y20 - d02 * y10)
+    varB = (d02 * z10 - d01 * z20) / (d01 * y20 - d02 * y10)
+    varC = (d02 * (d01 ** 2 + x0 ** 2 - x1 ** 2 + y0 ** 2 - y1 ** 2 + z0 ** 2 - z1 ** 2) - d01 * (d02 ** 2 + x0 ** 2 - x2 ** 2 + y0 ** 2 - y2 ** 2 + z0 ** 2 - z2 ** 2)) / (2 * (d01 * y20 - d02 * y10))
+    
+    varD = (d23 * x12 - d21 * x32) / (d21 * y32 - d23 * y12)
+    varE = (d23 * z12 - d21 * z32) / (d21 * y32 - d23 * y12)
+    varF = (d23 * (d21 ** 2 + x2 ** 2 - x1 ** 2 + y2 ** 2 - y1 ** 2 + z2 ** 2 - z1 ** 2) - d21 * (d23 ** 2 + x2 ** 2 - x3 ** 2 + y2 ** 2 - y3 ** 2 + z2 ** 2 - z3 ** 2)) / (2 * (d21 * y32 - d23 * y12))
+
+    varG = (varE - varB) / (varA - varD)
+    varH = (varF - varC) / (varA - varD)
+    varI = varA * varG + varB
+    varJ = varA * varH + varC
+
+    varK = d02 ** 2 + x0 ** 2 - x2 ** 2 + y0 ** 2 - y2 ** 2 + z0 ** 2 - z2 ** 2 + 2 * x20 * varH + 2 * y20 * varJ
+    varL = 2 * (x20 * varG + y20 * varI + z20) # was written wrong in paper 
+    varM = 4 * d02 ** 2 * (varG ** 2 + varI ** 2 + 1) - varL ** 2
+    varN = 8 * d02 ** 2 * (varG * (x0 - varH) + varI * (y0 - varJ) + z0) + 2 * varL * varK
+    varO = 4 * d02 ** 2 * ((x0 - varH) ** 2 + (y0 - varJ) ** 2 + z0 ** 2) - varK ** 2
+
+    pqFt = varN / (2 * varM)
+    pqSd = (varN /(2 * varM)) ** 2 - (varO / varM)
+
+    print("pq-sel", pqFt, pqSd)
+    zposCand1 = pqFt + np.sqrt(np.abs(pqSd))
+    zposCand2 = pqFt - np.sqrt(np.abs(pqSd))
+
+    print("z candidates", zposCand1, zposCand2)
+
+    #zpos = zposCand1 if zposCand1 < 0 else zposCand2
+    zpos = np.max([np.min([zposCand1, zposCand2, 0]), -30])
+
+    ypos = varI * zpos + varJ
+    xpos = varG * zpos + varH
+
+    return xpos, ypos, zpos
 
 def dist_to_delay(achorPos: list[tuple], vehPos: tuple[float], absolute: bool = False):
 
@@ -99,13 +179,13 @@ def dist_to_delay(achorPos: list[tuple], vehPos: tuple[float], absolute: bool = 
     s1 = np.array(achorPos[1])
     s2 = np.array(achorPos[2])
     s3 = np.array(achorPos[3])
-    s4 = np.array(achorPos[4])
+    #s4 = np.array(achorPos[4])
 
     dist0 = np.linalg.norm(s - s0)
     dist1 = np.linalg.norm(s - s1)
     dist2 = np.linalg.norm(s - s2)
     dist3 = np.linalg.norm(s - s3)
-    dist4 = np.linalg.norm(s - s4)
+    #dist4 = np.linalg.norm(s - s4)
 
     # S_0 |-----^------------------------|
     # S_1 |-------------^----------------|
@@ -118,24 +198,28 @@ def dist_to_delay(achorPos: list[tuple], vehPos: tuple[float], absolute: bool = 
         t1 = dist1 / SOFSOUND_WATER
         t2 = dist2 / SOFSOUND_WATER
         t3 = dist3 / SOFSOUND_WATER
-        t4 = dist4 / SOFSOUND_WATER
+        #t4 = dist4 / SOFSOUND_WATER
 
-        return t0, t1, t2, t3, t4
+        return t0, t1, t2, t3
 
     else:
         tau01 = (dist0 - dist1) / SOFSOUND_WATER
         tau02 = (dist0 - dist2) / SOFSOUND_WATER
         tau03 = (dist0 - dist3) / SOFSOUND_WATER
-        tau04 = (dist0 - dist4) / SOFSOUND_WATER
+        #tau04 = (dist0 - dist4) / SOFSOUND_WATER
 
-        return tau01, tau02, tau03, tau04
+        return tau01, tau02, tau03
 
 def circlePath(scale: float, offset: float, res: int = 10):
-    phi = np.linspace(0, 4*np.pi, res, endpoint=False)
+    phi = np.linspace(0, 3*np.pi, res, endpoint=False)
     x = scale * np.sin(phi) + offset
     y = scale * np.cos(phi) + offset
+
     #z = np.linspace(0, -res, res)
-    z = np.array(range(0, res))
+    z = np.array(range(-res, -1))
+
+    # rotate
+    
 
     return x,y,z
 
@@ -153,13 +237,15 @@ def main():
     #    (np.random.randint(0,100), np.random.randint(0,100), np.random.randint(-50,0))]
 
     #anc = [(10,1,np.random.randint(5,20)), (100,10,np.random.randint(5,20)), (10,100,np.random.randint(5,20)), (100,100,np.random.randint(5,20)), (50,50,np.random.randint(5,20))]
-    anc = [(10,1,10),(100,10,15),(100,100,20),(10,100,5), (10,50,10)]
+    #anc = [(10,1,1),(100,10,1),(100,100,1),(10,100,1), (10,50,1)]
+    #anc = [(15,1,7),(100,10,5),(90,100,6),(16,100,3), (10,50,4)]
+    anc = [(15,1,-0.5), (70,10,-0.5), (50,60,-0.5), (16,95,-0.5)]
     #print("Real delays", realDelays)
 
     lstRealPos = []
     lstEstPos = []
 
-    xPos, yPos, zPos = circlePath(15, 75, 15)
+    xPos, yPos, zPos = circlePath(30, 80, 20)
 
     """for ch in chns:
         snr = 10 ** (snr / 10)
@@ -182,7 +268,7 @@ def main():
     zAnchors = list(zip(*anc))[2]
 
     fig.add_trace(go.Scatter3d(x=xAnchors, y=yAnchors, z=zAnchors, mode='markers', marker=dict(size=30), name="Anchors", marker_color='#EF553B', text=["S0", "S1", "S2", "S3", "S4"], textposition="bottom center"))
-    snr = -10
+    snr = 10
     # sweet spot -11dB, everyting above creates intense distortion
     snr = 10 ** (snr / 10)
     for cx, cy, cz in zip(xPos, yPos, zPos):
@@ -192,12 +278,13 @@ def main():
 
         lstRealPos.append((cx, cy, cz))
         
-        maxDelays, cfarDelays = simulation(absDelays, 5, showAll=False, addGWN=True, useSim=True, channel='CASTLE1', polyDeg=10, targetSNR=snr)
+        maxDelays, cfarDelays = simulation(absDelays, 4, showAll=False, addGWN=False, useSim=True, channel='CASTLE2', polyDeg=10, targetSNR=snr)
 
         #print("rel delays from direct calc", round(relDelays[0],3), round(relDelays[1],3), round(relDelays[2],3))
         #print("rel. delays from simulation", round(maxDelays[0],3), round(maxDelays[1],3), round(maxDelays[2],3))
 
-        estPos = localLateration(anc, maxDelays)
+        #estPos = localLateration(anc, maxDelays)
+        estPos = quadraticApprox(anc, absDelays)
         lstEstPos.append((estPos[0], estPos[1], estPos[2]))
 
     fig.add_trace(go.Scatter3d(x=xPos, y=yPos, z=zPos, name="real Position", marker_color='#636EFA'))
@@ -210,15 +297,14 @@ def main():
 
     fig.show()
 
-
     fig = go.Figure()
 
     localError = totalError(lstRealPos, lstEstPos)
 
     fig.add_trace(go.Scatter(y=localError))
     fig.show()
-    # add filtfilt order dobuling to PDF
 
 if __name__ == "__main__":
     main()
     
+# 
