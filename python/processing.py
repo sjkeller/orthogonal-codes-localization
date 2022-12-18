@@ -6,11 +6,9 @@ from scipy import signal as sig
 from scipy.io import savemat, loadmat, wavfile
 from sequences import gold_seq
 
-import matplotlib.pyplot as plt
-
 DPIEXPORT = 400
-MATSAVE = '/Users/sk/Library/CloudStorage/OneDrive-Persönlich/Studium/TUHH/3. Semester Master/Forschungsprojekt/uw-watermark-main/Watermark/input/signals/tSigTB_'
-WAVLOAD = '/Users/sk/Library/CloudStorage/OneDrive-Persönlich/Studium/TUHH/3. Semester Master/Forschungsprojekt/uw-watermark-main/Watermark/output/'
+MATSAVE = '/Users/sk/Library/CloudStorage/OneDrive-Persönlich/Studium/TUHH/3. Semester MA/Forschungsprojekt/uw-watermark-main/Watermark/input/signals/tSigTB_'
+WAVLOAD = '/Users/sk/Library/CloudStorage/OneDrive-Persönlich/Studium/TUHH/3. Semester MA/Forschungsprojekt/uw-watermark-main/Watermark/output/'
 
 CASTLE_1_SELECT = [0, 0, 0]
 
@@ -24,7 +22,7 @@ Tsym = 1 / bw       # symbol length
 SpS = fs * Tsym     # upsampling factor
 rolloff = 1/8       # FIR cosine filter coefficent
 fc = 62.5e3         # carrier freqency
-sysOrd = 3          # order of butterworth filter
+sysOrd = 5          # order of butterworth filter
 
 #targetSNR = 0.1        # targeted Signal Noise Ratio for addtive GWN generator
 watermarkDelay = 12e-3  # delay of watermark simulation time of flight
@@ -260,18 +258,21 @@ def ca_cfar(x: np.ndarray, trBinSize: int, guBinSize: int, faRate: float, sort: 
 
 def show_butter_bode(saveFig: bool = False):
        
-    sys = sig.butter(1, bw / 2, 'lowpass', fs=fs)
-    fBode, dBMag, fPha = sig.bode(sys)
+    sys = sig.butter(sysOrd, bw / 2, 'lowpass', fs=fs, output='ba')
+    #print(sys[0], sys[1])
+    w, h = sig.freqz(sys[0], sys[1])
+
+
+    fBode, _, fPha = sig.bode(sys)
 
     figure = make_subplots(rows=1, cols=2)
-    figure.add_trace(go.Scatter(x=fBode, y=dBMag, marker_color='#1F77B4', line=dict(width=3)), row=1, col=1)
+    figure.add_trace(go.Scatter(x=fBode, y=20*np.log10(abs(h)), marker_color='#1F77B4', line=dict(width=3)), row=1, col=1)
     figure.add_trace(go.Scatter(x=fBode, y=fPha, marker_color='#1F77B4', line=dict(width=3)), row=1, col=2)
     figure.update_xaxes(type='log', title_text='Frequency [rad/s]')
     figure.update_yaxes(title_text='Magnitude [dB]', row=1, col=1)
     figure.update_yaxes(title_text='Phase [deg]', row=1, col=2)
-    figure.update_layout(title='Butterworth Low-Pass of Order 5 and 20kHz cutoff', showlegend=False)
+    figure.update_layout(showlegend=False)
     figure.show()
-
 
     if saveFig:
         figure.write_image("img/bode.pdf", scale=1.5, width=2.5 * DPIEXPORT, height=1 * DPIEXPORT)
@@ -286,6 +287,8 @@ def show_raised_cosine(saveFig: bool = False):
     figure.show()
 
     if saveFig:
+        import plotly.io as pio   
+        pio.kaleido.scope.mathjax = None
         figure.write_image("img/cosfir.pdf", scale=1, width=2.5 * DPIEXPORT, height=1 * DPIEXPORT)
 
 def gen_gwn_snr(signal: np.ndarray, stdEst: float, snr: float):
@@ -410,8 +413,6 @@ def simulation(tDelays: list[float], numOfAnchors: int, addGWN = False, startSee
 
         figure.add_vline(tauCC[lagInd], line_color='#EF553B', line_width=3, row=index, col=1)
 
-        
-        
         index += 1
 
     fig_title = "code degree: " + str(polyDeg) + ", watermark channel: " + channel + ", target SNR: " + str(10*np.log10(abs(targetSNR))) + "dB"
@@ -444,16 +445,16 @@ def simulation(tDelays: list[float], numOfAnchors: int, addGWN = False, startSee
         figure.update_layout(title='Recieved Sum of Signals in Baseband')
         figure.show()
 
-    relDelays = (estDelays[0] - estDelays[1], estDelays[0] - estDelays[2], estDelays[0] - estDelays[3], estDelays[0] - estDelays[4])
+    #relDelays = (estDelays[0] - estDelays[1], estDelays[0] - estDelays[2], estDelays[0] - estDelays[3], estDelays[0] - estDelays[4])
 
-    return relDelays, lstSigCCpks
+    return estDelays, lstSigCCpks
 
 def main():
     #for snr in [-20, -15, -10, -5, 0, 5, 10, 15, 20]:
     snr = 0
     snr = 10 ** (snr / 10)
-    simulation([5e-3, 10e-3, 15e-3, 20e-3, 25e-3], 5, showAll=False, addGWN=True, targetSNR=snr, useSim=False, polyDeg=10)
-    #show_butter_bode(saveFig=True)
+    #simulation([5e-3, 10e-3, 15e-3, 20e-3, 25e-3], 5, showAll=False, addGWN=True, targetSNR=snr, useSim=False, polyDeg=10)
+    show_butter_bode(saveFig=False)
     #show_raised_cosine(saveFig=True)
 
 if __name__ == "__main__":
