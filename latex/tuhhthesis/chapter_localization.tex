@@ -35,7 +35,7 @@ The calculated threshold is than scaled by a formula depending on the false alar
 \begin{figure}[h]
 	\includegraphics[width=\linewidth]{images/peakdet}
 	
-	\caption{CFAR threshold peak detection procedure}
+	\caption{CFAR threshold peak detection procedure \cite{rohling11}}
 	\label{fig:simsig}
 \end{figure}
 
@@ -45,7 +45,7 @@ The calculated threshold is than scaled by a formula depending on the false alar
 \end{equation}
 
 
-\section{Position calculation}
+\section{Explicit Position calculation}
 
 The initial condition for the localization are four anchors $S_i$ with thir coordinates $\{x_i,y_i,z_i\}$ and the target $S$ which is to be located. By multiplying relative delays by the speed of sound $c$ which is approximately set to $1500\,\frac{m}{s}$, the distance $d_{ij}$ between the reference anchor $S_0$ and $S_i$ is calculated.\\
 \begin{equation}
@@ -82,7 +82,89 @@ By these values a Matrix $A$ and vector $\vec{b}$ is created. Thus, a System $A\
 	\end{array}
 	\right]
 \end{equation}
+Theoretically an system $A$ of lower rank can be solve by least squares. Having said this, positions calculated by that approach could not satisfy the demands of 3D localization.
 
 \begin{equation}
 	\vec{x}=(A^T A)^{-1} A^T\vec{b}
 \end{equation}
+
+\section{GPS like localization method}
+
+Because of restrictions introduced in the the first localization method an alternative localization procedure is probed. Thus a position calculation by four anchors is alternatively pursued.\\
+\begin{equation}
+	x_{ji}:=x_j-x_i,~~~~~
+	y_{ji}:=y_j-y_i,~~~~~
+	z_{ji}:=z_j-z_i~~~~~
+\end{equation}
+By rearranging the derivation of hyperbola intersections the following substitutes can be defined. 
+\begin{equation}
+	\mathbf{A}=\cfrac{d_{02}x_{10}-d_{01}x_{20}}{d_{01}y_{20}-d_{02}y_{10}},~~~
+	\mathbf{B}=\cfrac{d_{02}z_{10}-d_{01}z_{20}}{d_{01}y_{20}-d_{02}y_{10}}
+\end{equation}	
+\begin{equation}
+	\mathbf{C}=\cfrac{d_{02}\left(d_{01}^2+x_0^2-x_1^2+y_0^2-y_1^2+z_0^2-z_1^2\right)-d_{01}\left(d_{02}^2+x_0^2-x_2^2+y_0^2-y_2^2+z_0^2-z_2^2\right)}{2\left(d_{01}y_{20}-d_{02}y_{10}\right)}
+\end{equation}	
+
+\begin{equation}
+	\mathbf{D}=\cfrac{d_{23}x_{12}-d_{21}x_{32}}{d_{21}y_{32}-d_{23}y_{12}},~~~
+	\mathbf{E}=\cfrac{d_{23}z_{12}-d_{21}z_{32}}{d_{21}y_{32}-d_{23}y_{12}}
+\end{equation}	
+\begin{equation}
+	\mathbf{F}=\cfrac{d_{23}\left(d_{21}^2+x_1^2-x_1^2+y_1^2-y_1^2+z_0^2-z_1^2\right)-d_{21}\left(d_{23}^2+x_1^2-x_2^2+y_1^2-y_2^2+z_1^2-z_2^2\right)}{2\left(d_{21}y_{32}-d_{23}y_{12}\right)}
+\end{equation}	
+
+\begin{equation}
+	\mathbf{G}=\cfrac{\mathbf{E}-\mathbf{B}}{\mathbf{A}-\mathbf{D}},~~~
+	\mathbf{H}=\cfrac{\mathbf{F}-\mathbf{C}}{\mathbf{A}-\mathbf{D}},~~~
+	\mathbf{I}=\mathbf{A}\cdot \mathbf{G}+\mathbf{B},~~~
+	\mathbf{J}=\mathbf{A}\cdot \mathbf{H}+\mathbf{C}
+\end{equation}	
+
+\begin{equation}
+	\mathbf{K}=d_{02}^2+x_0^2-x_2^2+y_0^2-y_2^2+z_0^2-z_2^2+2x_{20}\mathbf{H}+2y_{20}\mathbf{J}
+\end{equation}	
+
+\begin{equation}
+	\mathbf{L}=2\left(x_{20}\mathbf{G}+y_{20}\mathbf{I}+z_{20}\right)
+\end{equation}	
+
+\begin{equation}
+	\mathbf{M}=4d_{02}^2\left(\mathbf{G}^2+\mathbf{I}^2+1\right)-\mathbf{L}^2
+\end{equation}	
+
+\begin{equation}
+	\mathbf{N}=8d_{02}^2\left[\mathbf{G}\left(x_0-\mathbf{H}\right)+\mathbf{I}\left(y_0-\mathbf{J}\right)+z_0\right]+2\mathbf{L}\cdot\mathbf{K}
+\end{equation}	
+
+\begin{equation}
+	\mathbf{O}=4d_{02}^2\left[\left(x_0-\mathbf{H}\right)^2+\left(y_0-\mathbf{J}\right)^2+z_0^2\right]-\mathbf{K}^2
+\end{equation}	
+
+A downside of this approach is the uncertainty of position $z$. Thus, additional information on bounds is necessary. The target won't get above sea level. Consequently, at least one boundary $z_{surface}$ which acts like a maximum can be set. The minimum value $z_{ground}$ can be assumed as the lowest position achievable underwater. 
+\begin{equation}
+	z_{a,b}=\cfrac{\mathbf{N}}{2\mathbf{M}}\pm\sqrt{\left(\cfrac{\mathbf{N}}{2\mathbf{M}}\right)^2-\cfrac{\mathbf{O}}{\mathbf{M}}}
+\end{equation}	
+
+\begin{equation}
+	z=\min\left\{\max\left\{z_a,~z_b,~z_{surface}\right\},~z_{ground}\right\}
+\end{equation}	
+
+The resulting x and y values of our target can then be calculated by the following formula using the selected $z$.
+
+\begin{equation}
+			\vec{x}
+	=\left[
+	\begin{array}{c}
+		x\\
+		y\\
+		z
+	\end{array}
+	\right]
+=\left[
+	\begin{array}{c}
+		\mathbf{G}z+\mathbf{J}\\
+		\mathbf{I}z+\mathbf{H}\\
+		z
+	\end{array}
+	\right]
+\end{equation}	
