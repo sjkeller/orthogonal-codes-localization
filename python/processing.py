@@ -10,6 +10,10 @@ DPIEXPORT = 400
 MATSAVE = '/Users/sk/Library/CloudStorage/OneDrive-Persönlich/Studium/TUHH/3. Semester MA/Forschungsprojekt/uw-watermark-main/Watermark/input/signals/tSigTB_'
 WAVLOAD = '/Users/sk/Library/CloudStorage/OneDrive-Persönlich/Studium/TUHH/3. Semester MA/Forschungsprojekt/uw-watermark-main/Watermark/output/'
 
+LABWAVSAVE = '/Users/sk/Library/CloudStorage/OneDrive-Persönlich/Studium/TUHH/3. Semester MA/Forschungsprojekt/labdata/send/tSigTB_'
+LABWAVLOAD = '/Users/sk/Library/CloudStorage/OneDrive-Persönlich/Studium/TUHH/3. Semester MA/Forschungsprojekt/labdata/recv/test2_tps.wav'
+LABMATCONF = '/Users/sk/Library/CloudStorage/OneDrive-Persönlich/Studium/TUHH/3. Semester MA/Forschungsprojekt/labdata/matlab/hydro_coeff.mat'
+
 CASTLE_1_SELECT = [0, 0, 0]
 
 file_index = 0
@@ -23,6 +27,7 @@ SpS = fs * Tsym     # upsampling factor
 rolloff = 1/8       # FIR cosine filter coefficent
 fc = 62.5e3         # carrier freqency
 sysOrd = 5          # order of butterworth filter
+signalWaitTime = 0.01
 
 #targetSNR = 0.1        # targeted Signal Noise Ratio for addtive GWN generator
 watermarkDelay = 12e-3  # delay of watermark simulation time of flight
@@ -32,6 +37,20 @@ watermarkDelay = 12e-3  # delay of watermark simulation time of flight
 
 
 def genAxis(size: int, step: float):
+    """Generates Axis by its absolute size and time steppings
+
+    Args
+    ----
+    size: int
+        size of axis
+    step: float
+        step intervals in seconds
+
+    Returns
+    -------
+    time axis
+    """
+
     newaxis = np.zeros(size)
     i = 1
     while i < size:
@@ -72,7 +91,7 @@ def _get_fftfunc(sig: np.ndarray, fs: float):
 
     return (freq, np.abs(fSig))
 
-def gen_tb_signal(time: np.ndarray, tSigBB: np.ndarray, saveMat: bool = True, polyDeg: int = 10):
+def gen_tb_signal(time: np.ndarray, tSigBB: np.ndarray, saveMat: bool = True, saveWav: bool = False, polyDeg: int = 10):
     """Generates transfer band signal and saves its optionally as mat file
 
     Args
@@ -88,17 +107,29 @@ def gen_tb_signal(time: np.ndarray, tSigBB: np.ndarray, saveMat: bool = True, po
     -------
     time axis and transferband shifted signal
     """
-
-    
-
+    global file_index
     ### shift spectrum to transmission band
     tSigTB = tSigBB * np.exp(2.j*np.pi*fc*time)
+
+
 
     ### save signal as matlab object for watermark
     matobj = {'fs_x': fs, 'nBits': 0, 'x': tSigTB}
     if saveMat:
-        global file_index
         savemat(MATSAVE + "d" + str(polyDeg) + "_" + str(file_index) + '.mat', matobj)
+        file_index += 1
+    elif saveWav:
+
+        ### filter to meet hydrophone characterstics
+        coeff = loadmat(LABMATCONF)['b'][0]
+        tSigTB = sig.lfilter(coeff, 1, tSigTB)
+
+        ### put zeros at end if needed
+        interval = int(0.5 * fs)
+        tSigTB = np.append(tSigTB, (interval - len(tSigTB)) * [0])
+        print("matfile: ",coeff)
+        #wavfile.write(LABWAVSAVE + "d" + str(polyDeg) + "_" + str(file_index) + '.wav', int(fs), np.real(tSigTB))
+        print(int(fs))
         file_index += 1
 
     return time, tSigTB
@@ -201,7 +232,7 @@ def corr_lag(x : np.ndarray, y: np.ndarray, fs: float):
 
     return tLags, tCC
 
-def ca_cfar(x: np.ndarray, trBinSize: int, guBinSize: int, faRate: float, sort: bool = True):
+def ca_cfar(x: np.ndarray, trBinSize: int, guBinSize: int, faRate: float, sort: bool = True, threshold: float = 0.0):
     """ Applies CA-FAR threshold on signal
 
     Args
@@ -249,8 +280,7 @@ def ca_cfar(x: np.ndarray, trBinSize: int, guBinSize: int, faRate: float, sort: 
 
         estZ = trBinEst * alpha
 
-
-        threshList.append(estZ)
+        threshList.append(np.max([estZ, threshold]))
 
     return np.pad(threshList, binSize, 'edge')
 
@@ -300,7 +330,7 @@ def gen_gwn_snr(signal: np.ndarray, stdEst: float, snr: float):
 
     return gwn
 
-def simulation(tDelays: list[float], numOfAnchors: int, addGWN = False, startSeed: int = 42, showAll: bool = False, targetSNR: float = 1.0, useSim: bool = True, channel: str = 'CASTLE1', polyDeg: int = 10):
+def simulation(tDelays: list[float], numOfAnchors: int, addGWN = False, startSeed: int = 42, showAll: bool = False, targetSNR: float = 1.0, useSim: bool = True, channel: str = 'CASTLE1', polyDeg: int = 10, labExport = False):
 
     figure = make_subplots(rows=numOfAnchors, cols=1)
     lstAnchors = []
@@ -328,7 +358,10 @@ def simulation(tDelays: list[float], numOfAnchors: int, addGWN = False, startSee
         lstAnchors.append(tSigBB)
 
         ### shift spectrum to transmission band and save it for simulation
-        time, tSigTB = gen_tb_signal(time, tSigBB, False, polyDeg)
+        if labExport:
+            time, tSigTB = gen_tb_signal(time, tSigBB, False, True, polyDeg)
+        else:
+            time, tSigTB = gen_tb_signal(time, tSigBB, False, False, polyDeg)
         
         ### use simulation signal or just passthrough the generated transfer-band signal
         if useSim:
@@ -341,7 +374,12 @@ def simulation(tDelays: list[float], numOfAnchors: int, addGWN = False, startSee
         lstSignals.append(tSigTBr)
 
     ### sum up all signals with added delay zero padding and extenden length
-    timeSum, tSigTBrSum = delay_sum(lstSignals, tDelays, fs, tstep)
+    if labExport:
+        _, tSigTBrSum = wavfile.read(LABWAVLOAD)
+        tSigTBrSum = tSigTBrSum[:int(fs*10.0)]
+        timeSum = genAxis(len(tSigTBrSum), tstep)
+    else:
+        timeSum, tSigTBrSum = delay_sum(lstSignals, tDelays, fs, tstep)
 
     ### setting win length resulting in a guard bin size of peak width 0.00014
     guLen = int(fs * 0.00014)
@@ -386,13 +424,13 @@ def simulation(tDelays: list[float], numOfAnchors: int, addGWN = False, startSee
 
         si = np.append(si, [0] * (len(tSigBBrSum) - len(si)))
         tauCC, tauSigCC = corr_lag(tSigBBrSum, si, fs)
-        varSigSum = ca_cfar(tauSigCC, guLen * 6, guLen, 1.2e-1, sort=False)
+        varSigSum = ca_cfar(tauSigCC, guLen * 6, guLen, 1.2e-1, sort=False, threshold=0.2)
 
         SigCCpks = np.abs(tauSigCC.copy())
         #SigCCpks[SigCCpks < varSigSum] = 0
         #SigCCpks[SigCCpks > varSigSum] = 1
         #SigCCpks = SigCCpks.astype(dtype=bool)
-        sigCCind= np.where(SigCCpks > varSigSum)
+        sigCCind = np.where(SigCCpks > varSigSum)
         #lstSigCCpks.append(SigCCpks)
 
         lagInd = np.argmax(abs(tauSigCC))
@@ -447,14 +485,14 @@ def simulation(tDelays: list[float], numOfAnchors: int, addGWN = False, startSee
 
     #relDelays = (estDelays[0] - estDelays[1], estDelays[0] - estDelays[2], estDelays[0] - estDelays[3], estDelays[0] - estDelays[4])
 
-    return estDelays, lstSigCCpks
+    return (estDelays, lstSigCCpks), (timeSum, tSigBBrSum), lstAnchors
 
 def main():
     #for snr in [-20, -15, -10, -5, 0, 5, 10, 15, 20]:
     snr = 0
     snr = 10 ** (snr / 10)
-    #simulation([5e-3, 10e-3, 15e-3, 20e-3, 25e-3], 5, showAll=False, addGWN=True, targetSNR=snr, useSim=False, polyDeg=10)
-    show_butter_bode(saveFig=False)
+    simulation([5e-3, 10e-3, 15e-3, 20e-3], 4, showAll=True, addGWN=False, targetSNR=snr, useSim=False, polyDeg=10)
+    #show_butter_bode(saveFig=False)
     #show_raised_cosine(saveFig=True)
 
 if __name__ == "__main__":

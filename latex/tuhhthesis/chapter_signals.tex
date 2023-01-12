@@ -6,7 +6,7 @@ After code generation the binary data needs to be transormed into a transmittabl
 \section{Pulse shaping}
 
 The raw code which was previously generated is first put through an sign function, which sets its mean to zero. The discontinuous signal holds an infinite bandwidth because it consists of rectangular pulses. These pulse spans have infinity frequency, which are impossible to implement for acoustic transmission. Therefore a restriction to a certain bandwidth must be introduced. Such a reduction is possible by applying an low-pass filter.\\
-Because limiting the signals bandwidth introduces a damped oscillation, which leads to incorrect decoding of received data \cite{bibid}, a appropriate choice of filter would be a the raised cosine \ref{eq:cosfir}. Such a pulse filter is defined by a squared cosine, which decreases its amplitude in frequency. In our case the roll off factor $\alpha$ is set to $0.125$ and symbol length $T_{sym}$ to the inverse of our target bandwidth $20\,kHz$.\\
+Because limiting the signals bandwidth introduces a damped oscillation, which leads to incorrect decoding of received data \cite{ken07}, a appropriate choice of filter would be a the raised cosine \ref{eq:cosfir}. Such a pulse filter is defined by a squared cosine, which decreases its amplitude in frequency. In our case the roll off factor $\alpha$ is set to $0.125$ and symbol length $T_{sym}$ to the inverse of our target bandwidth $20\,kHz$.\\
 Before applying the filter the generated codes need to be up-scaled for our target sampling rate. The relation between sampling rate $f_s$ and up-sampling factor $Sp_s$ is $Sp_s=fs\cdot T_{sym}$.
 
 \begin{equation}
@@ -63,7 +63,7 @@ On the receiver side all signals are received as a sum, which is mixed by artifa
 The received signal may have noise around its bandwidth. Thus, we only pass though frequencies inside our frequency band by applying a butterworth band pass filter.
 A flat magnitude is favorable because only frequencies of the base-band should be passed through. 
 The filter gets applied after shifting back to the base-band. Such a filter, namely a maximally flat magnitude filter, approximates this goal. The roll-off decreases by increasing the order of the system.\\
-The critical frequencies of the applied filter are $f_c\pm\dfrac{bw}{2}$ by an Order of 5. Thus frequencies get removed which are not inside the spectrum of interest. To remove shifts in time the filter is applied forwards and backwards following a doubling of its order.
+The critical frequencies of the applied filter are $f_c\pm\frac{bw}{2}$ by an Order of 5. Thus frequencies get removed which are not inside the spectrum of interest. To remove shifts in time the filter is applied forwards and backwards following a doubling of its order. By using the filter twice the order gets doubled.
 
 \section{Shift to base band}
 
