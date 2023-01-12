@@ -254,6 +254,7 @@ def underwater_localization(anchorsPos: list[tuple], path: tuple[np.ndarray], de
             peaks.append(tauCC[cfarPeakInd])
         
         anchorPeaks.append(peaks)
+        
     lastZPos = -1.0
     for pos in range(POSITIONS - 1):
         tdoaSelection = [item[pos] for item in anchorPeaks]

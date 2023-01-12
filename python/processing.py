@@ -376,7 +376,7 @@ def simulation(tDelays: list[float], numOfAnchors: int, addGWN = False, startSee
     ### sum up all signals with added delay zero padding and extenden length
     if labExport:
         _, tSigTBrSum = wavfile.read(LABWAVLOAD)
-        tSigTBrSum = tSigTBrSum[:int(fs*10.0)]
+        #tSigTBrSum = tSigTBrSum[:int(fs*3.0)]
         timeSum = genAxis(len(tSigTBrSum), tstep)
     else:
         timeSum, tSigTBrSum = delay_sum(lstSignals, tDelays, fs, tstep)
@@ -420,38 +420,40 @@ def simulation(tDelays: list[float], numOfAnchors: int, addGWN = False, startSee
     estDelays = []
     lstSigCCpks = []
 
-    for si in lstAnchors:
+    if showAll:
 
-        si = np.append(si, [0] * (len(tSigBBrSum) - len(si)))
-        tauCC, tauSigCC = corr_lag(tSigBBrSum, si, fs)
-        varSigSum = ca_cfar(tauSigCC, guLen * 6, guLen, 1.2e-1, sort=False, threshold=0.2)
+        for si in lstAnchors:
 
-        SigCCpks = np.abs(tauSigCC.copy())
-        #SigCCpks[SigCCpks < varSigSum] = 0
-        #SigCCpks[SigCCpks > varSigSum] = 1
-        #SigCCpks = SigCCpks.astype(dtype=bool)
-        sigCCind = np.where(SigCCpks > varSigSum)
-        #lstSigCCpks.append(SigCCpks)
+            si = np.append(si, [0] * (len(tSigBBrSum) - len(si)))
+            tauCC, tauSigCC = corr_lag(tSigBBrSum, si, fs)
+            varSigSum = ca_cfar(tauSigCC, guLen * 6, guLen, 1.2e-1, sort=False, threshold=0.2)
 
-        lagInd = np.argmax(abs(tauSigCC))
+            SigCCpks = np.abs(tauSigCC.copy())
+            #SigCCpks[SigCCpks < varSigSum] = 0
+            #SigCCpks[SigCCpks > varSigSum] = 1
+            #SigCCpks = SigCCpks.astype(dtype=bool)
+            sigCCind = np.where(SigCCpks > varSigSum)
+            #lstSigCCpks.append(SigCCpks)
 
-        #print("indexes: ", lagInd)
-        estDelays.append(tauCC[lagInd])
-        figure.add_trace(go.Scatter(x=tauCC, y=np.abs(tauSigCC), mode='lines', marker_color='#000'), row=index, col=1)
-        figure.add_trace(go.Scatter(x=tauCC, y=varSigSum, mode='lines', marker_color='#636EFA'), row=index, col=1)
+            lagInd = np.argmax(abs(tauSigCC))
 
-        lastVal = 0
-        for i in sigCCind[0]:
-            if i != lastVal + 1:
-                figure.add_vline(tauCC[i], line_color='#00CC96', line_width=3, line_dash='dash', row=index, col=1)
-                lstSigCCpks.append(tauCC[i])
-            lastVal = i
+            #print("indexes: ", lagInd)
+            estDelays.append(tauCC[lagInd])
+            figure.add_trace(go.Scatter(x=tauCC, y=np.abs(tauSigCC), mode='lines', marker_color='#000'), row=index, col=1)
+            figure.add_trace(go.Scatter(x=tauCC, y=varSigSum, mode='lines', marker_color='#636EFA'), row=index, col=1)
 
-            #figure.add_vrect()
+            lastVal = 0
+            for i in sigCCind[0]:
+                if i != lastVal + 1:
+                    figure.add_vline(tauCC[i], line_color='#00CC96', line_width=3, line_dash='dash', row=index, col=1)
+                    lstSigCCpks.append(tauCC[i])
+                lastVal = i
 
-        figure.add_vline(tauCC[lagInd], line_color='#EF553B', line_width=3, row=index, col=1)
+                #figure.add_vrect()
 
-        index += 1
+            figure.add_vline(tauCC[lagInd], line_color='#EF553B', line_width=3, row=index, col=1)
+
+            index += 1
 
     fig_title = "code degree: " + str(polyDeg) + ", watermark channel: " + channel + ", target SNR: " + str(10*np.log10(abs(targetSNR))) + "dB"
     figure.update_layout(showlegend=False, title=fig_title)
