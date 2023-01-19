@@ -11,7 +11,7 @@ MATSAVE = '/Users/sk/Library/CloudStorage/OneDrive-Persönlich/Studium/TUHH/3. 
 WAVLOAD = '/Users/sk/Library/CloudStorage/OneDrive-Persönlich/Studium/TUHH/3. Semester MA/Forschungsprojekt/uw-watermark-main/Watermark/output/'
 
 LABWAVSAVE = '/Users/sk/Library/CloudStorage/OneDrive-Persönlich/Studium/TUHH/3. Semester MA/Forschungsprojekt/labdata/send/tSigTB_'
-LABWAVLOAD = '/Users/sk/Library/CloudStorage/OneDrive-Persönlich/Studium/TUHH/3. Semester MA/Forschungsprojekt/labdata/recv/test2_tps.wav'
+LABWAVLOAD = '/Users/sk/Nextcloud/data/Forschungsprojekt/labdata/recv/output_4_synced_d10.wav'
 LABMATCONF = '/Users/sk/Library/CloudStorage/OneDrive-Persönlich/Studium/TUHH/3. Semester MA/Forschungsprojekt/labdata/matlab/hydro_coeff.mat'
 
 CASTLE_1_SELECT = [0, 0, 0]

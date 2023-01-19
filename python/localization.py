@@ -234,28 +234,74 @@ def underwater_localization(anchorsPos: list[tuple], path: tuple[np.ndarray], de
         peaks = []
 
         anchor = np.append(lstAnchors[i], [0] * (len(totalSumSignals) - len(lstAnchors[i])))
-        tauCC, tauSigCC = corr_lag(totalSumSignals, anchor, 200e3) 
-        cfarSigSum = ca_cfar(tauSigCC, guLen * 4, guLen, 2.1e-1, sort=False, threshold=0.2)
+        tauCC, tauSigCC = corr_lag(totalSumSignals, anchor, fs) 
+        #cfarSigSum = ca_cfar(tauSigCC, guLen * 3, guLen, 1.0e-1, sort=False, threshold=0.2)
+        sigCCpks = np.abs(tauSigCC.copy())
 
+        if deg == 8:
+            cfarStartThresh = 0.172
+        if deg == 9:
+            cfarStartThresh = 0.118
+        if deg == 10:
+            cfarStartThresh = 0.086
+
+
+
+        groups = [0] * (POSITIONS + 1)
+        print("selecting peaks for anchor", i)
+        lastlen = 0
+        while len(groups) > POSITIONS - 1:
+            lastlen = len(groups)
+            print(len(groups), end=",")
+            
+            
+            cfarStartThresh -= 0.02e-1
+
+            cfarSigSum = ca_cfar(tauSigCC, guLen * 6, guLen, cfarStartThresh, sort=False, threshold=np.mean(np.abs(tauSigCC)))
+            sigCCInd = np.where(sigCCpks > cfarSigSum)
+            groups = group_consecutive_values(sigCCInd[0])
+
+
+        
+        if len(groups) != POSITIONS - 1:
+            
+            cfarSigSum = ca_cfar(tauSigCC, guLen * 6, guLen, cfarStartThresh + 0.02e-1, sort=False, threshold=np.mean(np.abs(tauSigCC)))
+            print("winning thresh", cfarStartThresh + 0.02e-1)
+            sigCCInd = np.where(sigCCpks > cfarSigSum)
+            groups = group_consecutive_values(sigCCInd[0])
+        else:
+            print("winning thresh", cfarStartThresh)
+
+
+        print("selected", len(groups), "peak groups")
+
+        lstCFARSig.append((tauCC, tauSigCC, cfarSigSum))
+            
+        """cfarSigSum = ca_cfar(tauSigCC, guLen * 4, guLen, 2.1e-1, sort=False, threshold=0.55)
+        
         lstCFARSig.append((tauCC, tauSigCC, cfarSigSum))
 
         sigCCpks = np.abs(tauSigCC.copy())
         sigCCInd = np.where(sigCCpks > cfarSigSum)
 
         # group consecutive values for further processing
-        groups = group_consecutive_values(sigCCInd[0])
+        groups = group_consecutive_values(sigCCInd[0])"""
 
         if len(groups) != POSITIONS - 1:
-            exit("Peaks not succefully detected!", len(groups))
-
+            print("len groups", len(groups), POSITIONS - 1)
+            print("Peaks not succefully detected!")
+        lastgr = [0]
         for gr in groups:
             # get maximum of every index group
+            #if gr[0] > (lastgr[-1] + int(fs * 0.01)):
             cfarPeakInd = np.where(np.abs(tauSigCC) == np.max(np.abs(tauSigCC[gr])))[0][0]
+            lastgr = gr
             peaks.append(tauCC[cfarPeakInd])
         
         anchorPeaks.append(peaks)
         
     lastZPos = -1.0
+    print("pks", anchorPeaks)
     for pos in range(POSITIONS - 1):
         tdoaSelection = [item[pos] for item in anchorPeaks]
         #lstSumDelays.append(tdoaSelection)
@@ -276,17 +322,22 @@ def underwater_localization(anchorsPos: list[tuple], path: tuple[np.ndarray], de
     return lstEstPos, anchorPeaks, lstCFARSig, (totalSumTime, totalSumSignals), posError
 
 def main():
-    POS = 2
+    POS = 10
 
     anc = [(15,1,7),(200,10,5),(195,210,6),(16,190,3)]
     testPath = circlePath(30, 100, POS + 1)
-    noiseSNR = (-15, -10, -5, 0, 5)
+    noiseSNR = (-10, -5, 0, 5, 10, 15, 20)
+    degs = (8, 9, 10)
     lstErrors = []
+    errorPlot = go.Figure()
 
-    for snr in noiseSNR:
-        eastPositions, lstToas, cfarData, sigCC, error = underwater_localization(anc, testPath, snr=snr)
-        lstErrors.append(error)
-
+    for deg in degs:
+        for snr in noiseSNR:
+            eastPositions, lstToas, cfarData, sigCC, error = underwater_localization(anc, testPath, snr=snr, deg=deg)
+            lstErrors.append(np.mean(error))
+            
+        errorPlot.add_trace(go.Scatter(x=noiseSNR, y=lstErrors))
+        errorPlot.update_layout(title="Error between real and east. positions")
 
     ### plotting positions in 3d
     posScatter = go.Figure()
@@ -295,7 +346,6 @@ def main():
     xAnchors = list(zip(*anc))[0]
     yAnchors = list(zip(*anc))[1]
     zAnchors = list(zip(*anc))[2]
-
 
     posScatter.add_trace(go.Scatter3d(x=xAnchors, y=yAnchors, z=zAnchors, mode='markers', marker=dict(size=30), name="Anchors", marker_color='#EF553B', text=["S0", "S1", "S2", "S3"], textposition="bottom center"))
     
@@ -325,7 +375,7 @@ def main():
         for t in lstToas[ai]:
             tdoaLineplot.add_vline(t, line_color='#EF553B', line_width=3, line_dash='solid', row=ai+1, col=1)
 
-    for pos in range(POS - 1):
+    for pos in range(POS):
 
         selection = [item[pos] for item in lstToas]
         for i in range(len(anc)):
@@ -333,13 +383,6 @@ def main():
 
     tdoaLineplot.update_layout(showlegend=False, title="CFAR TOA correlation peaks")
     
-
-    errorPlot = make_subplots(rows=len(noiseSNR))
-    for i in range(len(lstErrors)):
-        title_name = "Error for " + str(noiseSNR[i]) + " dB"
-        errorPlot.add_trace(go.Scatter(x=list(range(POS)), y=lstErrors[i], name=title_name), row=i+1, col=1)
-    errorPlot.update_layout(title="Error between real and east. positions")
-
     ### show all plots
     posScatter.show()
     tdoaLineplot.show()

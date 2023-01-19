@@ -4,9 +4,9 @@ import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-PEAKSTODETECT = 3
+PEAKSTODETECT = 5
 INTERVALSIZE = 0.5
-SOFSOUND_WATER = 1500
+SOFSOUND_WATER = 1430.3
 
 def main():
     fs = 200e3
@@ -16,6 +16,7 @@ def main():
     # use filt (not filtfilt) to fitler the signal by fitler b and hydrophone vals
     # gated periods
     # 1.5V
+
     tSigBBrSum = tSigSum[1][:int(PEAKSTODETECT * INTERVALSIZE * fs)]
     
     tSigBBrSum = np.pad(tSigBBrSum, (int(INTERVALSIZE * fs), 0), 'mean')
@@ -23,7 +24,7 @@ def main():
 
     lstCFARSig = []
     anchorPeaks = []
-    guLenInSec = 0.00009
+    guLenInSec = 5.7e-5
     guLen = int(fs * guLenInSec)
     for i in range(len(lstAnchors)):
         peaks = []
@@ -32,7 +33,7 @@ def main():
         tauCC, tauSigCC = pr.corr_lag(tSigBBrSum, anchor, fs) 
 
         # 2.1e-1
-        cfarSigSum = pr.ca_cfar(tauSigCC, guLen * 2, guLen, 0.5e-1, sort=False, threshold=0.2)
+        cfarSigSum = pr.ca_cfar(tauSigCC, guLen * 6, guLen, 1.0e-1, sort=False, threshold=0.2)
 
         lstCFARSig.append((tauCC, tauSigCC, cfarSigSum))
 
@@ -90,7 +91,12 @@ def main():
         lstTDOA.append(round(np.abs(fstAnchTOA[i] - sndAnchTOA[i]), 6))
 
     print("TDOAs in s", lstTDOA)
-    print("distance in m", np.multiply(lstTDOA,SOFSOUND_WATER))
+
+    lstDist = np.multiply(lstTDOA,SOFSOUND_WATER)
+
+    print("distances in m", lstDist)
+    print("mean dist in m", np.mean(lstDist))
+
 
 if __name__ == "__main__":
     main()
