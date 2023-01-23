@@ -10,9 +10,9 @@ DPIEXPORT = 400
 MATSAVE = '/Users/sk/Library/CloudStorage/OneDrive-Persönlich/Studium/TUHH/3. Semester MA/Forschungsprojekt/uw-watermark-main/Watermark/input/signals/tSigTB_'
 WAVLOAD = '/Users/sk/Library/CloudStorage/OneDrive-Persönlich/Studium/TUHH/3. Semester MA/Forschungsprojekt/uw-watermark-main/Watermark/output/'
 
-LABWAVSAVE = '/Users/sk/Library/CloudStorage/OneDrive-Persönlich/Studium/TUHH/3. Semester MA/Forschungsprojekt/labdata/send/tSigTB_'
-LABWAVLOAD = '/Users/sk/Nextcloud/data/Forschungsprojekt/labdata/recv/output_4_synced_d10.wav'
-LABMATCONF = '/Users/sk/Library/CloudStorage/OneDrive-Persönlich/Studium/TUHH/3. Semester MA/Forschungsprojekt/labdata/matlab/hydro_coeff.mat'
+LABWAVSAVE = '/Users/sk/Nextcloud/data/Forschungsprojekt/labdata/send/tSigTB_'
+LABWAVLOAD = '/Users/sk/Nextcloud/data/Forschungsprojekt/labdata/recv/output_11_synced_further_noisy_d8.wav'
+LABMATCONF = '/Users/sk/Nextcloud/data/Forschungsprojekt/labdata/matlab/hydro_coeff.mat'
 
 CASTLE_1_SELECT = [0, 0, 0]
 

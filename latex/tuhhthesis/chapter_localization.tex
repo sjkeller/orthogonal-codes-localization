@@ -1,5 +1,48 @@
 \chapter{Localization}
 
+\section{Peak detection}
+
+The received signal, consisting of summed delayed signals, cross-correlated by every anchor. If the signal is not reflected the peak in cross-correlation would be obvious. But because by the introduction of noise and water reflections a higher rate of similar peaks appear. To suppress these effects a CA-FAR Algorithm \cite{rohling11} is applied to only detect the first reflected peak resulting in lower false alarms of peaks. \\
+CA-FAR works by using multiple values intervals. The most outer one could be described as a train bin and is used to get an estimation of the signals noise. Especially CA-FAR uses averaging to estimate the noise by measured cells. The bordering bin, defined as the guard cells, is used to reduce self-interference of the peaks. Thus, increasing window sizes $W$ results in better noise estimating but overall detectability is still limited by the sample rate  \cite{rohling11}\cite{radarbasics}. By knowledge of measured peak widths a optimal guard interval can be figured.\\
+The calculated threshold is than scaled by factor $S$ depending on a formula based on the false alarm rate $\eta$. The higher the false alarm rate, the weaker high amplitude peaks gets included by the estimated threshold \ref{eq:cff}.\\
+
+%Because Cell Averaging shows not satisfactory results in sensitive multi targets examples, the noise estimation could be enhanced by a sorting average applied to the %train interval. That principle is defined as CO-FAR \cite{rohling11}. 
+%\begin{center}
+%	\begin{tabular}{|c|c|}
+	%			\hline
+	%			candidate sample & $i$\\
+	%			\hline
+	%			guard interval (half) & $\mathcal{G}$ \\
+	%			\hline
+	%			train interval (half) & $\mathcal{T}$ \\
+	%			\hline
+	%			false alarm rate & $\eta$\\
+	%			\hline
+	%		\end{tabular}
+%	\linebreak
+%\end{center}
+%
+%\begin{equation}
+%	Threshold(i)_x=
+%	\cfrac{\alpha}{2\mathcal{T}}
+%	\left[ \sum_{j=i-\left( \mathcal{G}+\mathcal{T}\right) }^{i+\left( \mathcal{G}+\mathcal{T}\right)}x(j) - \sum_{j=i-\mathcal{G}}^{i+\mathcal{G}}x(j) \rigbest NAht] 
+%	\label{eq:cft}
+%\end{equation}
+\begin{equation}
+	S=2W\left( \eta^{-1/{2W}}-1\right) 
+	\label{eq:cff}
+\end{equation}
+
+\begin{figure}[h]
+	\includegraphics[width=\linewidth]{images/peakdet}
+	
+	\caption{CFAR threshold peak detection procedure \cite{rohling11}}
+	\label{fig:simsig}
+\end{figure}
+
+\begin{equation}
+	T=S\cdot Z,~~~Z_{CA}=\sum_{i=1}^{W}\dfrac{1}{W}x_{train}
+\end{equation}
 %\section{Explicit Position calculation}
 %
 %The initial condition for the localization are four anchors $S_i$ with thir coordinates $\{x_i,y_i,z_i\}$ and the target $S$ which is to be located. By multiplying relative delays by the speed of sound $c$ which is approximately set to $1500\,\frac{m}{s}$, the distance $d_{ij}$ between the reference anchor $S_0$ and $S_i$ is calculated.\\
@@ -137,47 +180,23 @@ The resulting x and y values of our target can then be calculated by the followi
 	\right]
 \end{equation}	
 
-\section{Peak detection}
-
-The received signal, consisting of summed delayed signals, cross-correlated by every anchor. If the signal is not reflected the peak in cross-correlation would be obvious. But because by the introduction of noise and water reflections a higher rate of similar peaks appear. To suppress these effects a CA-FAR Algorithm \cite{rohling11} is applied to only detect the first reflected peak resulting in lower false alarms of peaks. \\
-CA-FAR works by using multiple values intervals. The most outer one could be described as a train bin and is used to get an estimation of the signals noise. Especially CA-FAR uses averaging to estimate the noise by measured cells. The bordering bin, defined as the guard cells, is used to reduce self-interference of the peaks. Thus, increasing window sizes $W$ results in better noise estimating but overall detectability is still limited by the sample rate  \cite{rohling11}\cite{radarbasics}. By knowledge of measured peak widths a optimal guard interval can be figured.\\
-The calculated threshold is than scaled by a formula depending on the false alarm rate. The higher the false alarm rate, the weaker high amplitude peaks gets included by the estimated threshold \ref{eq:cff}.\\
-%Because Cell Averaging shows not satisfactory results in sensitive multi targets examples, the noise estimation could be enhanced by a sorting average applied to the %train interval. That principle is defined as CO-FAR \cite{rohling11}. 
-%\begin{center}
-%	\begin{tabular}{|c|c|}
-	%			\hline
-	%			candidate sample & $i$\\
-	%			\hline
-	%			guard interval (half) & $\mathcal{G}$ \\
-	%			\hline
-	%			train interval (half) & $\mathcal{T}$ \\
-	%			\hline
-	%			false alarm rate & $\eta$\\
-	%			\hline
-	%		\end{tabular}
-%	\linebreak
-%\end{center}
-%
-%\begin{equation}
-%	Threshold(i)_x=
-%	\cfrac{\alpha}{2\mathcal{T}}
-%	\left[ \sum_{j=i-\left( \mathcal{G}+\mathcal{T}\right) }^{i+\left( \mathcal{G}+\mathcal{T}\right)}x(j) - \sum_{j=i-\mathcal{G}}^{i+\mathcal{G}}x(j) \rigbest NAht] 
-%	\label{eq:cft}
-%\end{equation}
-%\begin{equation}
-%	\text{scale factor}~~~
-%	\alpha=2\mathcal{T}\left( \eta^{-1/{2\mathcal{T}}}-1\right) 
-%	\label{eq:cff}
-%\end{equation}
-\begin{figure}[h]
-	\includegraphics[width=\linewidth]{images/peakdet}
-	
-	\caption{CFAR threshold peak detection procedure \cite{rohling11}}
-	\label{fig:simsig}
-\end{figure}
-
+\section{Localization Simulation}
+In preparation for the field testing, several 3-dimensional space paths were simulated, wherein the generated points formed a helical curve that expanded in the z-direction. The positions of four anchors were utilized to calculate the corresponding Time Difference of Arrival (TDOA) values, which were subsequently incorporated into the localization algorithm. Multiple runs, utilizing varying SNR's and watermark channels were conducted to evaluate the performance of the peak detection method.\\
 \begin{equation}
-	T=S\cdot Z,~~~Z_{CA}=\sum_{i=1}^{W}\dfrac{1}{W}x_{train}
-	\label{eq:cff}
+	\vec{x}_{\phi}(\alpha,\beta)
+	=\left[
+	\begin{array}{c}
+		x=\alpha\cdot\sin{\phi}+\beta\\
+		y=\alpha\cdot\cos{\phi}+\beta\\
+		z=[|\phi|,-1)
+	\end{array}
+	\right]
 \end{equation}
 
+\begin{equation}
+	-
+\end{equation}
+
+\section{Localization field testing}
+
+The field test was carried out on a shore. Two hydrophones were placed one meter under sea level. The anchors A and B were placed with a distance of $4.1\,m$. Anchor B was placed $10.74\,m$ from the recieving hydrophone. The at that time under water measured speed of sound was $1430.3\,\frac{m}{s}$.

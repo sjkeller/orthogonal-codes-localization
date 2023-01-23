@@ -6,7 +6,19 @@ import numpy as np
 SOFSOUND_WATER = 1500
 POSITIONS = 15
 
-def group_consecutive_values(input_list):
+def remove_sublists(lists, distance):
+    new_lists = []
+    for i in range(len(lists)-1):
+        first_sublist = lists[i]
+        second_sublist = lists[i+1]
+        if abs(first_sublist[-1] - second_sublist[0]) > distance:
+            new_lists.append(first_sublist)
+    new_lists.append(lists[-1])
+    return new_lists
+
+def group_consecutive_values(input_list, threshold=1):
+    if len(input_list) == 0:
+        return []
     result = []
     current_group = [input_list[0]]
     for i in range(1, len(input_list)):
@@ -16,6 +28,7 @@ def group_consecutive_values(input_list):
             result.append(current_group)
             current_group = [input_list[i]]
     result.append(current_group)
+    result = remove_sublists(result, threshold)
     return result
 
 def totalError(listRealPos: list[tuple], listEstPos: list[tuple]):
