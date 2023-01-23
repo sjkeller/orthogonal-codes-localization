@@ -6,7 +6,24 @@ import numpy as np
 SOFSOUND_WATER = 1500
 POSITIONS = 15
 
-def remove_sublists(lists, distance):
+def remove_sublists(lists: list[list], distance: int):
+    """ Removes sublists with smaller difference in start and endvalue
+
+    example: 
+        remove_sublists([[1,2,3],[7,8,9],[10,11,12,13]], 3) => [[1,2,3],[7,8,9]]
+        last sublist got removed because 10 - 9 < distance
+
+    Args
+    ----
+    lists: list[list]
+        list of sublists containing consecutive values
+    distance: int
+        threshold for removing sublists
+
+    Returns
+    -------
+    list containing of wanted sublists
+    """
     new_lists = []
     for i in range(len(lists)-1):
         first_sublist = lists[i]
@@ -16,7 +33,20 @@ def remove_sublists(lists, distance):
     new_lists.append(lists[-1])
     return new_lists
 
-def group_consecutive_values(input_list, threshold=1):
+def group_consecutive_values(input_list: list[int], threshold: int = 1):
+    """ Groups consecutive values and put them as sublists into a list
+
+    Args
+    ----
+    input_list: list[int]
+        list of integers in order 0 ... len(input_list) - 1
+    threshold:
+        used for removing certain consecutive groups, set to 1 by default
+
+    Returns
+    -------
+    list of consecutive sublists
+    """
     if len(input_list) == 0:
         return []
     result = []
@@ -128,6 +158,21 @@ def quadraticApprox(anchorPos: list[tuple], toas: list[float], lastZPos: float =
     #return xpos, ypos, zposCand1, zposCand2
 
 def dist_to_delay(achorPos: list[tuple], vehPos: tuple[float], absolute: bool = False):
+    """ Converts 3d distances to TDOAs ot TOAs
+
+    Args
+    ----
+    anchorsPos: list[tuple]
+        absolute 3d Positions of four anchors as (x,y,z)
+    vehPos: tuple[float]
+        absolute 3d positions of undervater vehicle/target
+    absolute: bool
+        returns TOAs instead of TDOAs if True, False by default
+
+    Returns
+    -------
+    all four TOAs or three TDOAs
+    """
 
     # tau_i = 1/c * (|S - S_0| - |S - S_i|)
     s = np.array(vehPos)
