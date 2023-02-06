@@ -2,16 +2,20 @@
 
 Python scripts accompanying the **Orthogonal Codes for Acoustic Underwater Localization** research project. The Scripts should be compatible with python 3.10 and upwards. Following dependecies are needed for running:
 
-- numpy: numeric computing library containing a lot of neat array sstructures and light processing algorithms
+- **numpy**
+: numeric computing library containing a lot of neat array sstructures and light processing algorithms
     [Documentation](https://numpy.org/doc/stable/) [PyPI](https://pypi.org/project/numpy/)
 
-- scipy: scientific comupting library with a lot of matlab like functions
+- **scipy**
+: scientific comupting library with a lot of matlab like functions
     [Documentation](https://docs.scipy.org/doc/scipy/) [PyPI](https://pypi.org/project/scipy/)
 
-- commpy: signal processing library containing multiple algorithms for digital communication
+- **commpy**
+: signal processing library containing multiple algorithms for digital communication
     [Documentation](https://commpy.readthedocs.io/en/latest/) [PyPI](https://pypi.org/project/scikit-commpy/)
 
-- plotly: sophisticated plotting library for python and a lot of other programming languages
+- **plotly**
+: sophisticated plotting library for python and a lot of other programming languages
     [Documentation](https://plotly.com/python/) [PyPI](https://pypi.org/project/plotly/)
 
 Installation:
