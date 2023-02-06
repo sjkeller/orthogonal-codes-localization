@@ -5,11 +5,13 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from scipy.signal import find_peaks
 
-PEAKSTODETECT = 20
+DPIEXPORT = 400
+PEAKSTODETECT = 10
 INTERVALSIZE = 0.5
 SOFSOUND_WATER = 1430.3
 INITSTEPSIZE = 0.99
-MINIMUMTHRESH = 0.1
+MINIMUMTHRESH = 0.4
+MEASUREDDIST = 4.1
 
 def main():
     fs = 200e3
@@ -29,6 +31,7 @@ def main():
     anchorPeaks = []
     #anchorPeaksSnd = []
     guLenInSec = 0.00014
+    far = 2.6e-1
     guLen = int(fs * guLenInSec)
     for i in range(len(lstAnchors)):
         peaks = []
@@ -36,14 +39,30 @@ def main():
         anchor = np.append(lstAnchors[i], [0] * (len(tSigBBrSum) - len(lstAnchors[i])))
         tauCC, tauSigCC = pr.corr_lag(tSigBBrSum, anchor, fs) 
 
-        far = 200.0e-1
+        #tauSigCC /= max(abs(tauSigCC))
+
+        # d10 0.87e-1 0.2 0.95
+        # d10n 1.2e-1 0.4 0.9
+        # d10f 0.9e-1 0.2 0.95
+        # d10fn 1.2e-1 0.4 0.9
+        # d9f 1.2e-1 0.2 0.95
+        # d9fn 1.7e-1 0.4 0.9
+        # d8f 2.6e-1/2.327e-1 0.4 0.9
+        # d8fn 2.6e-1/2.327e-1 0.4 0.9
+        
         groups = []
 
         prev_len = None
         stepsize = INITSTEPSIZE
+        iterations = 0
+
+        cfarSigSum = pr.ca_cfar(tauSigCC, guLen * 6, guLen, far, sort=False, threshold=MINIMUMTHRESH)
+        sigCCpks = np.abs(tauSigCC.copy())
+        sigCCInd = np.where(sigCCpks > cfarSigSum)
+        groups = loc.group_consecutive_values(sigCCInd[0])
 
         print("num of pk areas,", "stepsize,", "far")
-        while len(groups) != PEAKSTODETECT:
+        """while len(groups) != PEAKSTODETECT:
             
             # 2.1e-1
             cfarSigSum = pr.ca_cfar(tauSigCC, guLen * 6, guLen, far, sort=False, threshold=MINIMUMTHRESH)
@@ -57,7 +76,7 @@ def main():
             sigCCInd = np.where(sigCCpks > cfarSigSum)
 
             # group consecutive values for further processing
-            groups = loc.group_consecutive_values(sigCCInd[0], int(INTERVALSIZE * 0.95 * fs))
+            groups = loc.group_consecutive_values(sigCCInd[0], int(INTERVALSIZE * 0.9 * fs))
 
             #if len(groups) != PEAKSTODETECT:
             #    print(len(groups))
@@ -74,7 +93,10 @@ def main():
             #        stepsize = INITSTEPSIZE
 
             prev_len = len(groups)
+            iterations += 1
             print(len(groups), stepsize, far)
+            if iterations > 10:
+                break"""
 
         lstCFARSig.append((tauCC, tauSigCC, cfarSigSum))
 
@@ -83,6 +105,11 @@ def main():
             cfarPeakInd = np.where(np.abs(tauSigCC) == np.max(np.abs(tauSigCC[gr])))[0][0]
             #peaks.append(tauCC[cfarPeakInd])
             peaks.append(cfarPeakInd)
+
+
+        print("all peaks", peaks)
+        peaks = loc.remove_under_threshold(peaks, int(fs * 0.1))
+        print("filt peaks", peaks)
         
         anchorPeaks.append(peaks)
         #anchorPeaksSnd.append(altPeaksInd)
@@ -116,8 +143,6 @@ def main():
 
     tdoaLineplot.update_layout(showlegend=False, title="CFAR TOA correlation peaks")
     
-
-
     fstAnchTOA = np.divide(anchorPeaks[0], fs)
     sndAnchTOA = np.divide(anchorPeaks[1], fs)
 
@@ -130,13 +155,17 @@ def main():
 
     lstDist = np.multiply(lstTDOA, SOFSOUND_WATER)
 
-    dstPlot = go.Figure(go.Scatter(x=tuple(range(PEAKSTODETECT)), y=lstDist))
-    dstPlot.add_hline(4.1, name="measured distance")
-    dstPlot.update_layout(title="Approximated vs Measured Distances in m")
+    dstPlot = go.Figure()
+    lstDist[lstDist > 5] = None
+    lstDist[lstDist < 4] = None
+    dstPlot.add_trace(go.Scatter(x=tuple(range(PEAKSTODETECT)), marker_color='#000000', y=lstDist, name='approx. distance'))
+    dstPlot.add_trace(go.Scatter(x=tuple(range(PEAKSTODETECT)), marker_color='#1F77B4', y=PEAKSTODETECT * [MEASUREDDIST], name='measured distance'))
+    dstPlot.update_layout(showlegend=True, xaxis_title='localization index', yaxis_title='position [m]', yaxis_range=[4,5])
     dstPlot.show()
+    #dstPlot.write_image("labtestimages/d8fn.pdf", scale=1, width= 1.6 * DPIEXPORT, height= 1.2 * DPIEXPORT)
 
     print("distances in m", lstDist)
-    print("mean dist in m", np.mean(lstDist))
+    print("meadian dist in m", np.median(lstDist))
 
     tdoaLineplot.show()
 

@@ -2,14 +2,40 @@ from processing import simulation, corr_lag, ca_cfar
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import numpy as np
-# source pending
+
 SOFSOUND_WATER = 1500
 POSITIONS = 15
+
+def remove_under_threshold(a: list[int], threshold: int):    
+    """
+    Given a list of values 'a' and a threshold value, the function returns a new list 'b' that only contains elements
+    from 'a' where the difference between the current and previous elements is greater than the threshold.
+    The first element of 'a' is always included in 'b'.
+    
+    Args
+    ----
+    a: list[int]
+        A list of numerical values
+    threshold: int
+        threshold value
+    
+    Returns
+    -------
+    A new list of values from 'a' where the difference between the current and previous elements is greater than 'threshold'
+    
+    """
+    a = np.array(a)
+    b = [a[0]]
+    diff = np.diff(a)
+    for i in range(len(a) - 1):
+        if diff[i] > threshold:
+            b.append(a[i + 1])
+    return b
 
 def remove_sublists(lists: list[list], distance: int):
     """ Removes sublists with smaller difference in start and endvalue
 
-    example: 
+    example: x
         remove_sublists([[1,2,3],[7,8,9],[10,11,12,13]], 3) => [[1,2,3],[7,8,9]]
         last sublist got removed because 10 - 9 < distance
 
@@ -212,15 +238,27 @@ def dist_to_delay(achorPos: list[tuple], vehPos: tuple[float], absolute: bool = 
         return tau01, tau02, tau03
 
 def circlePath(scale: float, offset: float, res: int = 10):
+    """
+    This function calculates the path of a circle in 3D space.
+
+    Args
+    ----
+    scale: float
+        scaling factor for the circle.
+    offset: float
+        offset for the x and y values.
+    res: int
+        number of resolution points along the path, default is 10.
+
+    Returns
+    -------
+    x, y, z: 1D arrays of floats, the x, y, and z coordinates of the circle path.
+
+    """
     phi = np.linspace(0, 3*np.pi, res, endpoint=False)
     x = scale * np.sin(phi) + offset
     y = scale * np.cos(phi) + offset
-
-    #z = np.linspace(0, -res, res)
     z = np.array(range(-res, -1))
-
-    # rotate
-
     return x,y,z
 
 def underwater_localization(anchorsPos: list[tuple], path: tuple[np.ndarray], deg: int = 10, snr: (float | None) = None, simChannel: (str | None) = None):
@@ -270,12 +308,14 @@ def underwater_localization(anchorsPos: list[tuple], path: tuple[np.ndarray], de
         lstRealPos.append((cx, cy, cz))
 
         if snr is not None:
-            delays, tSigSum, lstAnchors = simulation(absDelays, 4, showAll=False, addGWN=True, useSim=False, polyDeg=deg, targetSNR=snr)
+            if simChannel:
+                _, tSigSum, lstAnchors = simulation(absDelays, 4, showAll=False, addGWN=True, useSim=True, channel=simChannel, polyDeg=deg, targetSNR=snr)
+            else:
+                _, tSigSum, lstAnchors = simulation(absDelays, 4, showAll=False, addGWN=True, useSim=False, polyDeg=deg, targetSNR=snr)
         else:
-            delays, tSigSum, lstAnchors = simulation(absDelays, 4, showAll=False, addGWN=False, useSim=False, polyDeg=deg)
+            _, tSigSum, lstAnchors = simulation(absDelays, 4, showAll=False, addGWN=False, useSim=False, polyDeg=deg)
 
-        #if simChannel:
-        #    delays, tSigSum, lstAnchors = simulation(absDelays, 4, showAll=False, addGWN=False, useSim=True, channel=simChannel, polyDeg=deg, targetSNR=snr)
+
         #else:
         #    delays, tSigSum, lstAnchors = simulation(absDelays, 4, showAll=False, addGWN=False, useSim=False, polyDeg=deg)
 
@@ -294,9 +334,40 @@ def underwater_localization(anchorsPos: list[tuple], path: tuple[np.ndarray], de
         anchor = np.append(lstAnchors[i], [0] * (len(totalSumSignals) - len(lstAnchors[i])))
         tauCC, tauSigCC = corr_lag(totalSumSignals, anchor, fs) 
         #cfarSigSum = ca_cfar(tauSigCC, guLen * 3, guLen, 1.0e-1, sort=False, threshold=0.2)
-        sigCCpks = np.abs(tauSigCC.copy())
-
+        #sigCCpks = np.abs(tauSigCC.copy())
+        
+        groups = []
+        
         if deg == 8:
+            cfarStartThresh = 0.172
+        if deg == 9:
+            cfarStartThresh = 0.16
+        if deg == 10:
+            cfarStartThresh = 0.086
+            #cfarStartThresh = 0.07
+
+        
+        
+        cfarSigSum = ca_cfar(tauSigCC, guLen * 6, guLen, cfarStartThresh, sort=False, threshold=0.2)
+        sigCCpks = np.abs(tauSigCC.copy())
+        sigCCInd = np.where(sigCCpks > cfarSigSum)
+        groups = group_consecutive_values(sigCCInd[0])
+        lstCFARSig.append((tauCC, tauSigCC, cfarSigSum))
+        
+        for gr in groups:
+            # get maximum of every index group
+            cfarPeakInd = np.where(np.abs(tauSigCC) == np.max(np.abs(tauSigCC[gr])))[0][0]
+            #peaks.append(tauCC[cfarPeakInd])
+            peaks.append(cfarPeakInd)
+
+        print("all peaks", peaks)
+        peaks = remove_under_threshold(peaks, int(fs * 0.01))
+        print("filt peaks", peaks)
+        
+        for i in range(len(peaks)):
+            peaks[i] = tauCC[peaks[i]]
+        
+        """if deg == 8:
             cfarStartThresh = 0.172
         if deg == 9:
             cfarStartThresh = 0.118
@@ -335,7 +406,7 @@ def underwater_localization(anchorsPos: list[tuple], path: tuple[np.ndarray], de
 
         lstCFARSig.append((tauCC, tauSigCC, cfarSigSum))
             
-        """cfarSigSum = ca_cfar(tauSigCC, guLen * 4, guLen, 2.1e-1, sort=False, threshold=0.55)
+        cfarSigSum = ca_cfar(tauSigCC, guLen * 4, guLen, 2.1e-1, sort=False, threshold=0.55)
         
         lstCFARSig.append((tauCC, tauSigCC, cfarSigSum))
 
@@ -343,7 +414,7 @@ def underwater_localization(anchorsPos: list[tuple], path: tuple[np.ndarray], de
         sigCCInd = np.where(sigCCpks > cfarSigSum)
 
         # group consecutive values for further processing
-        groups = group_consecutive_values(sigCCInd[0])"""
+        groups = group_consecutive_values(sigCCInd[0])
 
         if len(groups) != POSITIONS - 1:
             print("len groups", len(groups), POSITIONS - 1)
@@ -354,7 +425,7 @@ def underwater_localization(anchorsPos: list[tuple], path: tuple[np.ndarray], de
             #if gr[0] > (lastgr[-1] + int(fs * 0.01)):
             cfarPeakInd = np.where(np.abs(tauSigCC) == np.max(np.abs(tauSigCC[gr])))[0][0]
             lastgr = gr
-            peaks.append(tauCC[cfarPeakInd])
+            peaks.append(tauCC[cfarPeakInd])"""
         
         anchorPeaks.append(peaks)
         
@@ -380,22 +451,28 @@ def underwater_localization(anchorsPos: list[tuple], path: tuple[np.ndarray], de
     return lstEstPos, anchorPeaks, lstCFARSig, (totalSumTime, totalSumSignals), posError
 
 def main():
-    POS = 10
+    POS = 20
 
     anc = [(15,1,7),(200,10,5),(195,210,6),(16,190,3)]
     testPath = circlePath(30, 100, POS + 1)
-    noiseSNR = (-10, -5, 0, 5, 10, 15, 20)
-    degs = (8, 9, 10)
+    #noiseSNR = (-10, -5, 0, 5, 10, 15, 20)
+    noiseSNR = tuple(range(-5,21))
+    #noiseSNR = (20, )
+    degs = (10, )
+    #degs = (10, )
     lstErrors = []
     errorPlot = go.Figure()
 
+
+
     for deg in degs:
         for snr in noiseSNR:
+            print("TESTING with deg", deg, "and snr of", snr, "dB")
             eastPositions, lstToas, cfarData, sigCC, error = underwater_localization(anc, testPath, snr=snr, deg=deg)
             lstErrors.append(np.mean(error))
             
-        errorPlot.add_trace(go.Scatter(x=noiseSNR, y=lstErrors))
-        errorPlot.update_layout(title="Error between real and east. positions")
+        #errorPlot.add_trace(go.Scatter(x=noiseSNR, y=lstErrors, marker_color='#000000'))
+        
 
     ### plotting positions in 3d
     posScatter = go.Figure()
@@ -416,330 +493,48 @@ def main():
     zEstPos = list(zip(*eastPositions))[2]
     posScatter.add_trace(go.Scatter3d(x=xEstPos, y=yEstPos, z=zEstPos, name="est. Position", marker_color='#FF97FF'))
 
-    posScatter.update_layout(title="Underwater Localization")
+    
+    scene=dict(camera=dict(up=dict(x=0, y=0, z=2),
+                                          center=dict(x=0, y=0, z=-0.1),
+                                          eye=dict(x=1.25, y=1.25, z=0.75)))
+    posScatter.update_layout(title="Underwater Localization", scene=scene)
+    #posScatter.write_image("3dplots/d10snr0.pdf", scale=1, width= 1.6 * 600, height= 1.2 * 600)
 
     ### plotting correlation toas
-    tdoaLineplot = make_subplots(rows=len(anc))
+    #tdoaLineplot = make_subplots(rows=len(anc))
+    tdoaLineplot = go.Figure()
 
     # plot correlation, cfar
-    for ai in range(len(anc)):
+    for ai in range(len(anc)-3):
         tauCC = cfarData[ai][0]
         tauSigCC = cfarData[ai][1]
         tauCFAR = cfarData[ai][2]
 
-        tdoaLineplot.add_trace(go.Scatter(x=tauCC, y=np.abs(tauSigCC), mode='lines', marker_color='#000'), row=ai+1, col=1)
-        tdoaLineplot.add_trace(go.Scatter(x=tauCC, y=tauCFAR, mode='lines', marker_color='#636EFA'), row=ai+1, col=1)
+        tdoaLineplot.add_trace(go.Scatter(x=tauCC, y=np.abs(tauSigCC), mode='lines', marker_color='#000', name='signal'))
+        tdoaLineplot.add_trace(go.Scatter(x=tauCC, y=tauCFAR, mode='lines', marker_color='#636EFA', name='CA-FAR'))
 
         for t in lstToas[ai]:
-            tdoaLineplot.add_vline(t, line_color='#EF553B', line_width=3, line_dash='solid', row=ai+1, col=1)
+            tdoaLineplot.add_vline(t, line_color='#EF553B', line_width=3, line_dash='solid')
 
     for pos in range(POS):
 
         selection = [item[pos] for item in lstToas]
         for i in range(len(anc)):
-            tdoaLineplot.add_vline(np.min(selection), line_color='#7F7F7F', line_width=3, line_dash='dash', row=i+1, col=1)
+            tdoaLineplot.add_vline(np.min(selection), line_color='#7F7F7F', line_width=3, line_dash='dash')
 
-    tdoaLineplot.update_layout(showlegend=False, title="CFAR TOA correlation peaks")
+    tdoaLineplot.update_layout(showlegend=True, xaxis_title='time [s]', yaxis_title='amplitude', yaxis_range=[0,1])
+    #tdoaLineplot.write_image("3dplots/d10plane1lines.pdf", scale=2, width= 1.6 * 400, height= 1.8 * 400)
     
     ### show all plots
-    posScatter.show()
-    tdoaLineplot.show()
+    #posScatter.show()
+    #tdoaLineplot.show()
+    
+    errorPlot.add_trace(go.Scatter(x=noiseSNR, y=lstErrors, marker_color='#000000'))
     errorPlot.show()
+    errorPlot.update_layout(xaxis_title='signal SNR [dB]', yaxis_title='mean distance error [m]')
+    errorPlot.write_image("snrerror1b.pdf", scale=1, width= 1.6 * 400, height= 1.2 * 400)
+    errorPlot.update_layout(yaxis_range=[0,round(0.25*np.var(lstErrors), 2)])
+    errorPlot.write_image("snrerror2b.pdf", scale=1, width= 1.6 * 400, height= 1.2 * 400)
 
 if __name__ == "__main__":
     main()
-
-
-"""
-def alt():
-    global file_index, load_index
-    #lstSNRdB = [-15, -10, -5, 0, 5]
-    lstSNRdB = [5]
-    #chns = ['PLANE1', 'PLANE2', 'CASTLE1', 'CASTLE2', 'CASTLE3']
-    degs = [8, 9, 10]
-    
-
-    #anc = [(np.random.randint(0,100), np.random.randint(0,100),np.random.randint(-50,0)), 
-    #    (np.random.randint(0,100), np.random.randint(0,100),np.random.randint(-50,0)), 
-    #    (np.random.randint(0,100), np.random.randint(0,100),np.random.randint(-50,0)), 
-    #    (np.random.randint(0,100), np.random.randint(0,100), np.random.randint(-50,0))]
-
-    #anc = [(10,1,np.random.randint(5,20)), (100,10,np.random.randint(5,20)), (10,100,np.random.randint(5,20)), (100,100,np.random.randint(5,20)), (50,50,np.random.randint(5,20))]
-    #anc = [(10,1,1),(100,10,1),(100,100,1),(10,100,1), (10,50,1)]
-    anc = [(15,1,7),(200,10,5),(195,210,6),(16,190,3)]
-    #anc = [(15,1,-0.5), (70,10,-0.5), (50,60,-0.5), (16,95,-0.5)]
-    #anc = [(0,0,-0.5),(30,0,-0.5),(20,20,-0.5),(0,30,-0.5)]
-    #print("Real delays", realDelays)
-
-    lstRealPos = []
-    lstEstPos = []
-    lstSumEstPos = []
-
-    xPos, yPos, zPos = circlePath(30, 100, POSITIONS)
-    
-
-    for ch in chns:
-        snr = 10 ** (snr / 10)
-        maxDelays, cfarDelays = simulation(realDelays, 3, showAll=False, addGWN=False, targetSNR=snr, useSim=True, channel=ch, polyDeg=10)
-        print("Detected delays by max:", maxDelays)
-        print("Detected delays by cfar:", cfarDelays)
-        file_index = 0
-        load_index = 0
-
-        estPos = localLateration(anc, realDelays)
-        print("new pos", estPos)
-
-    #showButterBode()
-    #showRaisedCosine()
-
-    posscatter = go.Figure()
-
-    xAnchors = list(zip(*anc))[0]
-    yAnchors = list(zip(*anc))[1]
-    zAnchors = list(zip(*anc))[2]
-
-    posscatter.add_trace(go.Scatter3d(x=xAnchors, y=yAnchors, z=zAnchors, mode='markers', marker=dict(size=30), name="Anchors", marker_color='#EF553B', text=["S0", "S1", "S2", "S3", "S4"], textposition="bottom center"))
-    snr = 10
-    # sweet spot -11dB, everyting above creates intense distortion
-    snr = 10 ** (snr / 10)
-
-    waypoint_index = 0
-
-    totalSumTime = []
-    totalSumSignals = []
-    lastTime = 0
-    lstAnchors = []
-
-    fs = 200e3
-    signalWaitTime = 0.2
-
-    for cx, cy, cz in zip(xPos, yPos, zPos):
-
-        print("pos", waypoint_index)
-
-        relDelays = dist_to_delay(anc, (cx, cy, cz))
-        absDelays = dist_to_delay(anc, (cx, cy, cz), absolute=True)
-
-        lstRealPos.append((cx, cy, cz))
-        
-        delays, tSigSum, lstAnchors = simulation(absDelays, 4, showAll=False, addGWN=True, useSim=True, channel='CASTLE1', polyDeg=10, targetSNR=snr)
-
-
-
-        #totalSumTime = np.append(totalSumTime, tSigSum[0])
-        #print("length of time", len(tSigSum[0]))
-        #totalSumTime[:] += lastTime
-        #print(lastTime)
-        #lastTime = tSigSum[0][-1]
-
-
-        ### shorting signal for selected time window
-        #totalSumSignals = np.append(totalSumSignals, tSigSum[1][int(fs*signalWaitTime):])
-
-        ### shortining signal from simualtor
-        totalSumSignals = np.append(totalSumSignals, tSigSum[1][:int(fs*signalWaitTime)])
-        #totalSumSignals = np.append(totalSumSignals, tSigSum[1])
-
-        #print("rel delays from direct calc", round(relDelays[0],3), round(relDelays[1],3), round(relDelays[2],3))
-        #print("rel. delays from simulation", round(maxDelays[0],3), round(maxDelays[1],3), round(maxDelays[2],3))
-
-        #estPos = localLateration(anc, maxDelays)
-
-        estPos = quadraticApprox(anc, delays[0])
-    
-
-        lstEstPos.append((estPos[0], estPos[1], estPos[2]))
-        #lstEstPos.append((estPos[0], estPos[1], estPos[3])) #shows that alt solution is also in negative space
-
-        waypoint_index += 1
-
-    totalSumTime = np.linspace(0, len(totalSumSignals) / fs, len(totalSumSignals))
-
-
-
-    posscatter.add_trace(go.Scatter3d(x=xPos, y=yPos, z=zPos, name="real Position", marker_color='#636EFA'))
-
-    xEstPos = list(zip(*lstEstPos))[0]
-    yEstPos = list(zip(*lstEstPos))[1]
-    zEstPos = list(zip(*lstEstPos))[2]
-
-    posscatter.add_trace(go.Scatter3d(x=xEstPos, y=yEstPos, z=zEstPos, name="est. MAX Position", marker_color='#AB63FA'))
-
-    #posscatter.show()
-
-    fig = go.Figure()
-
-    localError = totalError(lstRealPos, lstEstPos)
-
-    fig.add_trace(go.Scatter(y=localError))
-    fig.show()
-
-
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(x=totalSumTime, y=np.real(totalSumSignals)))
-    fig.show()
-
-
-    figure = make_subplots(rows=4, cols=1)
-    guLen = int(200e3 * 0.00014)
-
-    anchorPeaks = []
-    lstSumDelays = []
-
-
-    for i in range(len(lstAnchors)):
-
-        peaks = []
-        anchor = np.append(lstAnchors[i], [0] * (len(totalSumSignals) - len(lstAnchors[i])))
-        tauCC, tauSigCC = corr_lag(totalSumSignals, anchor, 200e3)
-
-
-        varSigSum = ca_cfar(tauSigCC, guLen * 6, guLen, 0.2e-1, sort=False)
-        
-        SigCCpks = np.abs(tauSigCC.copy())
-        sigCCind = np.where(SigCCpks > varSigSum)
-
-        figure.add_trace(go.Scatter(x=tauCC, y=np.abs(tauSigCC), mode='lines', marker_color='#000'), row=i+1, col=1)
-        figure.add_trace(go.Scatter(x=tauCC, y=varSigSum, mode='lines', marker_color='#636EFA'), row=i+1, col=1)
-
-        lastVal = 0
-
-        groups = group_consecutive_values(sigCCind[0])
-
-        #for j in sigCCind[0]:
-        #    
-        #    if j != lastVal + 1:
-        #        figure.add_vline(tauCC[j], line_color='#EF553B', line_width=3, line_dash='solid', row=i+1, col=1)
-        #        peaks.append(tauCC[j])
-        #    lastVal = j
-        for gr in groups:
-
-            cfarPeakInd = np.where(np.abs(tauSigCC) == np.max(np.abs(tauSigCC[gr])))[0][0]
-            print("found peak at index ", cfarPeakInd)
-
-            figure.add_vline(tauCC[cfarPeakInd], line_color='#EF553B', line_width=3, line_dash='solid', row=i+1, col=1)
-            peaks.append(tauCC[cfarPeakInd])
-
-        #peaks = [pk + 5e-5 for pk in peaks]
-
-        anchorPeaks.append(peaks)
-
-
-    for pos in range(POSITIONS - 1):
-
-        selection = [item[pos] for item in anchorPeaks]
-        lstSumDelays.append(selection)
-        print("pos. " + str(pos), selection)
-        for i in range(len(lstAnchors)):
-            figure.add_vline(np.min(selection), line_color='#7F7F7F', line_width=3, line_dash='dash', row=i+1, col=1)
-
-
-    print("peaks", anchorPeaks)
-        
-
-    figure.update_layout(showlegend=False)
-    figure.show()
-
-    ### seconds position loop for summed correlation eastimates
-
-
-    for pos in range(POSITIONS - 1):
-
-        estPos = quadraticApprox(anc, lstSumDelays[pos])
-        lstSumEstPos.append((estPos[0], estPos[1], estPos[2]))
-
-    xEstPos = list(zip(*lstSumEstPos))[0]
-    yEstPos = list(zip(*lstSumEstPos))[1]
-    zEstPos = list(zip(*lstSumEstPos))[2]
-
-    posscatter.add_trace(go.Scatter3d(x=xEstPos, y=yEstPos, z=zEstPos, name="est. CFAR Position", marker_color='#FF97FF'))
-    posscatter.show()
-def leastSquareEst(anchorPos: list[tuple], delays: list[float]):
-
-    m12 = delays[0] * SOFSOUND_WATER
-    m13 = delays[0] * SOFSOUND_WATER
-    m14 = delays[0] * SOFSOUND_WATER
-
-    dX2 = anchorPos[1][0] - anchorPos[0][0]
-    dX3 = anchorPos[2][0] - anchorPos[0][0]
-    dX4 = anchorPos[3][0] - anchorPos[0][0]
-
-    dY2 = anchorPos[1][1] - anchorPos[0][1]
-    dY3 = anchorPos[2][1] - anchorPos[0][1]
-    dY4 = anchorPos[3][1] - anchorPos[0][1]
-
-    dZ2 = anchorPos[1][2] - anchorPos[0][2]
-    dZ3 = anchorPos[2][2] - anchorPos[0][2]
-    dZ4 = anchorPos[3][2] - anchorPos[0][2]
-
-    dK2 = dX2 ** 2 + dY2 ** 2 + dZ2 ** 2
-    dK3 = dX3 ** 2 + dX3 ** 2 + dZ3 ** 2
-    dK4 = dX4 ** 2 + dY4 ** 2 + dZ4 ** 2
-
-    matA = np.array([[dX2, dY2, dZ2], [dX3, dY3, dZ3], [dX3, dY4, dZ4]])
-
-    vecC = np.array([dK2 - m12 ** 2, dK3 - m13 ** 2, dK4 - m14 ** 2])
-    vecD = np.array([-m12, -m13, -m14])
-    vecB = vecC + vecD
-
-    dPos = np.linalg.lstsq(matA, vecB, rcond=None)[0]
-    
-    return dPos"""
-
-"""def localLateration(anchorPos: list[tuple], delays: list[float]):
-
-    x0, y0, z0 = anchorPos[0]
-    x1, y1, z1 = anchorPos[1]
-    x2, y2, z2 = anchorPos[2]
-    x3, y3, z3 = anchorPos[3]
-    x4, y4, z4 = anchorPos[4]
-
-    tau01 = delays[0]
-    tau02 = delays[1]
-    tau03 = delays[2]
-    tau04 = delays[3]
-
-    d01 = SOFSOUND_WATER * tau01
-    d02 = SOFSOUND_WATER * tau02
-    d03 = SOFSOUND_WATER * tau03
-    d04 = SOFSOUND_WATER * tau04
-
-    #matA = np.array(
-    #    [[x0 - x1, y0 - y1, z0 - z1, d01], 
-    #     [x0 - x2, y0 - y2, z0 - z2, d02], 
-    #     [x0 - x3, y0 - y3, z0 - z3, d03], 
-    #     [x0 - x4, y0 - y4, z0 - z4, d04]]
-    
-    vecB = np.array(
-        [x0 ** 2 - x1 ** 2 + y0 ** 2 - y1 ** 2 + z0 ** 2 - z1 ** 2 + d01 ** 2, 
-         x0 ** 2 - x2 ** 2 + y0 ** 2 - y2 ** 2 + z0 ** 2 - z2 ** 2 + d02 ** 2, 
-         x0 ** 2 - x3 ** 2 + y0 ** 2 - y3 ** 2 + z0 ** 2 - z3 ** 2 + d03 ** 2,
-         x0 ** 2 - x4 ** 2 + y0 ** 2 - y4 ** 2 + z0 ** 2 - z4 ** 2 + d04 ** 2]
-    ) / 2
-
-    matA = np.array(
-        [[x0 - x1, y0 - y1, z0 - z1, d01], 
-         [x0 - x2, y0 - y2, z0 - z2, d02], 
-         [x0 - x3, y0 - y3, z0 - z3, d03]]
-    )
-    vecB = np.array(
-        [x0 ** 2 - x1 ** 2 + y0 ** 2 - y1 ** 2 + z0 ** 2 - z1 ** 2 + d01 ** 2, 
-         x0 ** 2 - x2 ** 2 + y0 ** 2 - y2 ** 2 + z0 ** 2 - z2 ** 2 + d02 ** 2, 
-         x0 ** 2 - x3 ** 2 + y0 ** 2 - y3 ** 2 + z0 ** 2 - z3 ** 2 + d03 ** 2]
-    ) / 2
-
-    ### positions by last sqare regression using direct inverse method (A^T * A)^-1 * A^T * b
-    # source https://math.stackexchange.com/questions/1722021/trilateration-using-tdoa
-    #pos = np.dot(np.dot(np.linalg.inv(np.dot(matA.T, matA)), matA.T), vecB)[:3]
-    #pos = np.linalg.solve(matA, vecB)
-    #pos, resid, _, sing = np.linalg.lstsq(matA, vecB, rcond=-1)
-    #pos, resid, _, sing = linalg.lstsq(matA, vecB)
-
-    result = optimize.lsq_linear(matA, vecB)
-
-    #print("residuals", resid, "singular vals", sing)
-
-    # least suqare/quadratic solution for using only 4 anchors
-    # *-----|-----* 
-
-    return result.x"""

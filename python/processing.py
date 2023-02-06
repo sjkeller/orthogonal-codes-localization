@@ -6,12 +6,23 @@ from scipy import signal as sig
 from scipy.io import savemat, loadmat, wavfile
 from sequences import gold_seq
 
+"""
+/Users/sk/Nextcloud/data/Forschungsprojekt/labdata/recv/output_4_synced_d10.wav
+/Users/sk/Nextcloud/data/Forschungsprojekt/labdata/recv/output_5_synced_noisy_d10.wav
+/Users/sk/Nextcloud/data/Forschungsprojekt/labdata/recv/output_6_synced_further_d10.wav
+/Users/sk/Nextcloud/data/Forschungsprojekt/labdata/recv/output_7_synced_further_noisy_d10.wav
+/Users/sk/Nextcloud/data/Forschungsprojekt/labdata/recv/output_8_synced_further_d9.wav
+/Users/sk/Nextcloud/data/Forschungsprojekt/labdata/recv/output_9_synced_further_noisy_d9.wav
+/Users/sk/Nextcloud/data/Forschungsprojekt/labdata/recv/output_10_synced_further_d8.wav
+/Users/sk/Nextcloud/data/Forschungsprojekt/labdata/recv/output_11_synced_further_noisy_d8.wav
+"""
+
 DPIEXPORT = 400
 MATSAVE = '/Users/sk/Library/CloudStorage/OneDrive-Persönlich/Studium/TUHH/3. Semester MA/Forschungsprojekt/uw-watermark-main/Watermark/input/signals/tSigTB_'
 WAVLOAD = '/Users/sk/Library/CloudStorage/OneDrive-Persönlich/Studium/TUHH/3. Semester MA/Forschungsprojekt/uw-watermark-main/Watermark/output/'
 
 LABWAVSAVE = '/Users/sk/Nextcloud/data/Forschungsprojekt/labdata/send/tSigTB_'
-LABWAVLOAD = '/Users/sk/Nextcloud/data/Forschungsprojekt/labdata/recv/output_11_synced_further_noisy_d8.wav'
+LABWAVLOAD = '/Users/sk/Nextcloud/data/Forschungsprojekt/labdata/recv/output_6_synced_further_d10.wav'
 LABMATCONF = '/Users/sk/Nextcloud/data/Forschungsprojekt/labdata/matlab/hydro_coeff.mat'
 
 CASTLE_1_SELECT = [0, 0, 0]
@@ -34,7 +45,6 @@ watermarkDelay = 12e-3  # delay of watermark simulation time of flight
 
 ### gold sequence generation
 #deg = 10
-
 
 def genAxis(size: int, step: float):
     """Generates Axis by its absolute size and time steppings
@@ -59,6 +69,20 @@ def genAxis(size: int, step: float):
     return newaxis
 
 def testPlotting(sig, time, num):
+    """
+    Plots a signal and its frequency representation using Plotly.
+    
+    Args
+    ----
+    :param sig: The signal to be plotted.
+    :type sig: numpy array
+    :param time: The time values for the signal.
+    :type time: numpy array
+    :param num: The number used to label the plot title.
+    :type num: int
+    :return: None
+    :rtype: None
+    """
     fig = make_subplots(rows=2, cols=1)
     print(len(sig))
     fig.add_trace(go.Scatter(y=np.real(sig), x=time), row=1, col=1)
@@ -263,7 +287,8 @@ def ca_cfar(x: np.ndarray, trBinSize: int, guBinSize: int, faRate: float, sort: 
 
     alpha = trBinSize * 2 * (faRate ** (-1/(trBinSize * 2)) - 1)
 
-    threshList = []
+    #threshList = []
+    threshList = np.empty(sigLen - 2 * binSize)
 
     for i in range(binSize, sigLen - binSize):
         
@@ -278,9 +303,11 @@ def ca_cfar(x: np.ndarray, trBinSize: int, guBinSize: int, faRate: float, sort: 
         if sort:
             trBinEst = np.median(trainBin)
 
-        estZ = trBinEst * alpha
+        #estZ = trBinEst * alpha
+        estZ = np.multiply(trBinEst, alpha)
 
-        threshList.append(np.max([estZ, threshold]))
+        #threshList.append(np.max([estZ, threshold]))
+        threshList[i - binSize] = np.max([estZ, threshold])
 
     return np.pad(threshList, binSize, 'edge')
 

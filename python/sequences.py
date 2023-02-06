@@ -173,7 +173,7 @@ def main():
    # polys = PREFERRED[deg]
 
 
-    """# generate full set of gold sequences and their autocorrelation
+    # generate full set of gold sequences and their autocorrelation
     for i in range(2, gold_set_size):
         gold_code = _bin2sign(gold_seq(polys[0], polys[1], i))
         gold_codes.append(gold_code)
@@ -224,8 +224,9 @@ def main():
     fig.show()
 
     fig = px.line(kasami_acr)
-    fig.show()"""
+    fig.show()
 
 
 if __name__ == "__main__":
-    main()
+    #main()
+    pass
