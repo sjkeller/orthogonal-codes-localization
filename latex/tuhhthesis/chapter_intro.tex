@@ -1,26 +1,25 @@
 \chapter{Introduction}
+Orthogonal codes are a widely adopted technology in various fields, including telecommunications and wireless communications. One of the most promising areas for the application of orthogonal codes is in underwater acoustic localization. Acoustic signals are widely used for underwater communication due to their ability to propagate well in water. However, the harsh underwater environment poses many challenges for accurate localization, such as multipath propagation and noise.
 
-Acoustic signals are nowadays mostly used for military and research propose. Electromagnetic waves cant perpetuate water, so by the use of acoustic modems water can be used as a medium. Underwater vehicles need to be capable of communicate to either themselves or objects placed at the surface. Even though the throughput of these acoustic signals is way less than its electromagnetic counterpart, it still has the advantage to perpetuate fluids.\\
+This research project proposes the use of pseudorandom binary codes for underwater acoustic localization. The codes are processed and then transmitted via hydrophones, and multiple sending anchors are used to increase the accuracy of the localization. Time-difference-of-arrival (TDOA) correlation techniques are employed to estimate the position of a target in 3D space using the signals received by the anchors. The use of orthogonal codes can improve the robustness of the localization system against noise and multipath propagation. The aim is to examine the performance of various code types and design strategies to select the optimal code. This research endeavors to enhance the precision and dependability of underwater localization systems through the utilization of orthogonal codes, with the ultimate goal of facilitating a plethora of applications, including but not limited to oceanographic studies and undersea navigation. 
 
+One specific example of this application would be the use in the BlueROV2 \ref{fig:bluerov}, a remotely operated underwater vehicle, which would greatly benefit from  this method of localization.
 
-\section{Motivation}
-
-Using water as a medium for localization signals can be somewhat sophisticated to implement and are therefore a challenging research topic. Due strong damping of the classic electromagnetic waves general technologies like GPS or GLONAS are not applicable in under water scenarios. \\
-Acoustic transmission comes in handy in this case. Most systems use a vehicle which transmits acoustic beacons. These are then received by hydrophones placed at the surface. By estimating the travel times the distance between hydrophones and the underwater vehicle can be calculated. However, to let it localize itself, the reverse method is needed. Thus, anchors firmly fixed at the surface send their individual signals and the vehicle receives them.\\
-Signals send by the anchors need to be separable but still observable. Therefore we need codes that are orthogonal towards each other but nonetheless posses clear auto-correlation. \\
-This project dives into the mathematical details of pseudo.random maximum length sequence generation and signal processing. By the use of cross-correlation and auto-correlation the separation of signals can be implemented and evaluated. 
- USB-Oscilloscope
-\section{Setup}
-The initial Setup is made of two acoustic anchors placed at a footbridge. An acoustic receiver connected to a  USB-Oscilloscope is placed between them. \\
-The advanced setup consists of 4 Anchors fixed at the surface broadcasting different signals produced from an python program. Acoustic Modems use broadcast the transfer band signal into the water. At the beginning these 4 anchors need to be synchronized. A blueROV2 receives these signals under water and saves them. Afterward the saved signals are used in python to calculate the position of the ROV.
 \begin{figure}[h]
-	\includegraphics[height=5cm]{images/bluerov}
+	\centering
+	\includegraphics[width=5.5cm]{images/bluerov}
 	
 	\caption{BlueROV2 from Blue Robotics Inc}
-	\label{fig:bode}
+	\label{fig:bluerov}
 \end{figure}
+\section{Motivation} 
+The principle of Time Difference of Arrival (TDOA) has been widely adopted in GPS applications for localizing small devices or mobile vehicles. However, this principle has yet to be fully explored for its potential in underwater localization. Unlike GPS, which utilizes electromagnetic waves, acoustic communication is required for underwater localization due to the high damping of electromagnetic waves underwater. This can be achieved through the use of hydrophones, piezoelectric transducers that are capable of receiving and sending underwater acoustic signals.
 
-\section{Principle}
+The current underwater localization systems rely on the underwater vehicle transmitting signals to anchored beacons. However, this project aims to reverse this approach, allowing multiple underwater vehicles to localize themselves with the help of signals transmitted by the beacons. In theory, multiple underwater vehicles should be able to simultaneously localize themselves without interference, making this project a valuable contribution to the development of more accurate and reliable underwater localization systems.
+\section{Setup and objectives}
+The study will commence with an examination of orthogonal codes, signal processing and modulation techniques. This will include a review of cross-correlation and auto-correlation concepts to ensure a solid understanding of the fundamental principles. Subsequently, the focus will shift towards understanding underwater communication and the transmission of acoustic signals through piezoelectric transducers.
 
-To get the appropriate signals we need to apply certain signal processing steps. First the pseudo-random codes gets up-sampled and put though an cosine FIR filter to remove high frequencies from the base-band. The resulting signal is than shifted to the transfer band. Hereon either a custom delay is artificially added by zero padding for the simulation or is send by the acoustic modem. \\
-Because of the advantageous properties of the used codes the different codes can be separated by cross-correlation by the not delayed versions. The cleaner the auto-correlation the higher are the peaks which are used to measure the initial delay. Method of peak detection may needed to filter out peaks caused from reflections.\\
+Based on the knowledge gained, the study will move forward with the implementation of a self-localization system in 3D space using four anchors, which will be based on orthogonal codes and a  appropriate peak detection algorithm. The initial phase of development will take place in MATLAB, followed by a switch to Python. The only exception will be the use of a benchmark tool, which will remain in MATLAB.
+Upon completion of the implementation, the performance of the algorithms will be evaluated in various scenarios. If the results are found to be satisfactory, the evaluation will be extended with a simplified field test in real-world conditions. 
+
+In summary, the research project aims to uncover valuable insights into using orthogonal codes for self-localization in underwater environments, and to implement a localization system. The project will conclude with a comprehensive evaluation and comparison of the implemented algorithm.

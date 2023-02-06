@@ -30,7 +30,7 @@
 %                   examination regulations, own work should be part of the regular
 %                   bibliography (this option is hence obsolete)
 
-\documentclass[en,abstract,acknowledgment,symbollist,inputenc=utf8]{tuhhthesis}
+\documentclass[en,print,inputenc=utf8]{tuhhthesis}
 \usepackage{tuhhlistings}
 \usepackage{multirow}
 \usepackage{siunitx}
@@ -51,13 +51,13 @@
 \author{Sergej Keller}
 
 % the official title of your work (*must* match the filed title)
-\title{Orthogonal Codes for Acoustic UnderwaterLocalization}
+\title{Orthogonal Codes for Acoustic Underwater Localization}
 
 % the institution of the first examiner (refer to tuhhlangnames.def)
 \institute{InstAutonomousCPS}
 
 % date of submission as DD.MM.YYYY
-\submitdate{01.04.2022}
+\submitdate{31.01.2023}
 
 % your matriculation number (for anything but PhD thesis)
 \matrnumber{50484}
@@ -72,9 +72,9 @@
 
 % full name and affiliation of first and second examiner
 \examinerFirst{Prof. Dr.-Ing. Bernd-Christian Renner}{Institute of Autonomous Cyber-Physical Systems\newline Hamburg University of Technology}
-\examinerSecond{Prof. Dr. Volker Turau}{Institute of Telematics\newline Hamburg University of Technology}
+%\examinerSecond{Prof. Dr. Volker Turau}{Institute of Telematics\newline Hamburg University of Technology}
 
-\supervisorFirst{Christoph Weyer}{Institute of Telematics, Hamburg University of Technology}
+\supervisorFirst{Fabian Steinmetz}{Institute of  Autonomous Cyber-Physical Systems, Hamburg University of Technology}
 %\supervisorSecond{Volker Turau}{Institute of Telematics, Hamburg University of Technology}
 
 % optional: print the TUB document number on title page
@@ -106,10 +106,9 @@
 \input{chapter_codes}
 \input{chapter_signals}
 %\input{chapter_implementation}
-
 \input{chapter_simulation}
 \input{chapter_localization}
-
+\input{chapter_conclusion}
 % The Chapters
 %\input{chapter_Introduction}
 %\input{chapter_Structure}
@@ -129,7 +128,7 @@
 % Appendix
 % Feel free to add additional appendix chapters (e.g., measurement setups, etc.)
 \begin{tuhhappendix}
-  \input{appendix_CD-Content}
+  %\input{appendix_CD-Content}
   \input{appendix_formula}
 \end{tuhhappendix}
 
