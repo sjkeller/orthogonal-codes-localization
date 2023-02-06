@@ -1,0 +1,83 @@
+\chapter{Localization Formula}
+
+\begin{equation}
+	x_{ji}:=x_j-x_i,~~~~~
+	y_{ji}:=y_j-y_i,~~~~~
+	z_{ji}:=z_j-z_i~~~~~
+\end{equation}
+
+\begin{equation}
+	{A}=\cfrac{d_{02}x_{10}-d_{01}x_{20}}{d_{01}y_{20}-d_{02}y_{10}},~~~
+	{B}=\cfrac{d_{02}z_{10}-d_{01}z_{20}}{d_{01}y_{20}-d_{02}y_{10}}
+\end{equation}	
+\begin{equation}
+	{C}=\cfrac{d_{02}\left(d_{01}^2+x_0^2-x_1^2+y_0^2-y_1^2+z_0^2-z_1^2\right)-d_{01}\left(d_{02}^2+x_0^2-x_2^2+y_0^2-y_2^2+z_0^2-z_2^2\right)}{2\left(d_{01}y_{20}-d_{02}y_{10}\right)}
+\end{equation}	
+
+\begin{equation}
+	{D}=\cfrac{d_{23}x_{12}-d_{21}x_{32}}{d_{21}y_{32}-d_{23}y_{12}},~~~
+	{E}=\cfrac{d_{23}z_{12}-d_{21}z_{32}}{d_{21}y_{32}-d_{23}y_{12}}
+\end{equation}	
+\begin{equation}
+	{F}=\cfrac{d_{23}\left(d_{21}^2+x_1^2-x_1^2+y_1^2-y_1^2+z_0^2-z_1^2\right)-d_{21}\left(d_{23}^2+x_1^2-x_2^2+y_1^2-y_2^2+z_1^2-z_2^2\right)}{2\left(d_{21}y_{32}-d_{23}y_{12}\right)}
+\end{equation}	
+
+\begin{equation}
+	{G}=\cfrac{{E}-{B}}{{A}-{D}},~~~
+	{H}=\cfrac{{F}-{C}}{{A}-{D}},~~~
+	{I}={A}\cdot {G}+{B},~~~
+	{J}={A}\cdot {H}+{C}
+\end{equation}	
+
+\begin{equation}
+	{K}=d_{02}^2+x_0^2-x_2^2+y_0^2-y_2^2+z_0^2-z_2^2+2x_{20}{H}+2y_{20}{J}
+\end{equation}	
+
+\begin{equation}
+	{L}=2\left(x_{20}{G}+y_{20}{I}+z_{20}\right)
+\end{equation}	
+
+\begin{equation}
+	{M}=4d_{02}^2\left({G}^2+{I}^2+1\right)-{L}^2
+\end{equation}	
+
+\begin{equation}
+	{N}=8d_{02}^2\left[{G}\left(x_0-{H}\right)+{I}\left(y_0-{J}\right)+z_0\right]+2{L}\cdot{K}
+\end{equation}	
+
+\begin{equation}
+	{O}=4d_{02}^2\left[\left(x_0-{H}\right)^2+\left(y_0-{J}\right)^2+z_0^2\right]-{K}^2
+\end{equation}	
+
+\begin{equation}
+	z_{a,b}=\cfrac{{N}}{2{M}}\pm\sqrt{\left(\cfrac{{N}}{2{M}}\right)^2-\cfrac{{O}}{{M}}}
+\end{equation}	
+
+\begin{equation}
+	z=\min\left\{\max\left\{z_a,~z_b,~z_{surface}\right\},~z_{ground}\right\}
+\end{equation}	
+
+\begin{equation}
+	z=\begin{cases}
+		z_a & \text{if }\abs{z_a-z'}<\abs{z_b-z'}\\
+		z_b & \text{else}
+	\end{cases}
+\end{equation}	
+
+\begin{equation}
+	\vec{x}
+	=\left[
+	\begin{array}{c}
+		x\\
+		y\\
+		z
+	\end{array}
+	\right]
+	=\left[
+	\begin{array}{c}
+		{G}z+{J}\\
+		{I}z+{H}\\
+		z
+	\end{array}
+	\right]
+\end{equation}	

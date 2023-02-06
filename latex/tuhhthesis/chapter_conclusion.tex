@@ -1,0 +1,10 @@
+\chapter{Conclusion}
+In this research project, the optimal orthogonal pseudorandom code, named gold codes, have been selected due to their satisfactory correlation properties and scalability. The signal processing, which includes modulation, filtering, and peak detection, has been successfully implemented in python. As a result, a 3D position localization algorithm has been developed that operates effectively in a simulated environment with only 4 anchors.
+
+To sum up the evaluation, the results of the data in this research project have demonstrated the effectiveness of using orthogonal codes for acoustic underwater localization. The simulation results have shown a stable localization performance, with higher SNR levels resulting in improved stability in peak detection. The principle of sidelobe increase has been observed to have a significant impact on the localization performance at lower SNR levels. The field testing results have confirmed the stability of the localization performance, particularly for codes of 10th degree. The CA-FAR algorithm has been found to be an effective tool for peak detection, but its performance still needed improvements by adjusting its false alarm rate based on the SNR and code degree.
+
+In terms of future research, there is room for improvement in the CFAR algorithm, such as the use of sorted data bins (OS-CFAR). Besides that, also alternative peak detection method could be tested in combination with CFAR.
+
+Moreover, exploring other options for increasing the gold code length, such as a method for concatenating codes without negatively impacting their correlation properties, could be investigated in future studies. This would provide more opportunities for improving the localization performance and may achieving even higher noise and multipath propagation tolerances. 
+
+Additionally, the effectiveness of the simulated setup with four anchors for 3D position localization, such as with the BlueROV2 underwater vehicle, could be further evaluated in real-world scenarios to gain a better understanding of its practical performance and limitations.
